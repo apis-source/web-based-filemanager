@@ -964,32 +964,54 @@ $icons = array(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced File Manager - Stable Final</title>
+    <title>File Manager - Professional Edition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --bg-main: #1a1a1a;
-            --bg-card: #242424;
-            --bg-hover: rgba(45, 180, 140, 0.1);
-            --bg-overlay: rgba(26, 26, 26, 0.95);
-            --text-primary: #e0e0e0;
-            --text-secondary: #a0a0a0;
-            --text-muted: #707070;
-            --border-color: #3a3a3a;
-            --accent-primary: #2db48c;
-            --accent-primary-hover: #3bc9a0;
-            --color-green: #4caf50;
-            --color-red: #f44336;
-            --color-orange: #ff9800;
-            --color-blue: #2196f3;
-            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            --font-mono: 'JetBrains Mono', 'Courier New', monospace;
-            --radius-base: 8px;
+            /* Shadcn UI inspired - Zinc/Slate palette */
+            --bg-main: #09090b;
+            --bg-card: #18181b;
+            --bg-elevated: #27272a;
+            --bg-hover: rgba(63, 63, 70, 0.4);
+            --bg-overlay: rgba(9, 9, 11, 0.96);
+
+            /* Text colors - zinc scale */
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+            --text-subtle: #52525b;
+
+            /* Border colors */
+            --border-color: #27272a;
+            --border-subtle: #1f1f23;
+
+            /* Accent colors - muted, sophisticated */
+            --accent-primary: #3b82f6;
+            --accent-primary-hover: #2563eb;
+            --accent-secondary: #06b6d4;
+
+            /* Semantic colors */
+            --color-success: #10b981;
+            --color-error: #ef4444;
+            --color-warning: #f59e0b;
+            --color-info: #3b82f6;
+
+            /* Typography */
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+            /* Spacing & Effects */
+            --radius-base: 6px;
             --radius-small: 4px;
-            --shadow-subtle: 0 2px 8px rgba(0,0,0,0.4);
-            --transition-fast: 0.2s ease;
+            --radius-large: 8px;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -1000,14 +1022,15 @@ $icons = array(
             font-family: var(--font-main);
             background-color: var(--bg-main);
             color: var(--text-primary);
-            line-height: 1.6;
+            line-height: 1.5;
             margin: 0;
-            padding: 16px;
-            font-size: 14px;
+            padding: 12px;
+            font-size: 13px;
+            letter-spacing: -0.01em;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
@@ -1015,15 +1038,21 @@ $icons = array(
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-base);
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow-subtle);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-fast);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-color);
         }
 
         .server-info {
             font-family: var(--font-mono);
-            font-size: 12px;
-            line-height: 1.7;
+            font-size: 11px;
+            line-height: 1.6;
             color: var(--text-secondary);
         }
 
@@ -1040,8 +1069,8 @@ $icons = array(
         .nav-bar {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin: 16px 0;
+            gap: 8px;
+            margin: 10px 0;
             flex-wrap: wrap;
         }
 
@@ -1049,9 +1078,9 @@ $icons = array(
             flex: 1;
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: var(--radius-small);
-            font-size: 13px;
+            font-size: 12px;
             word-break: break-all;
             min-width: 0;
         }
@@ -1065,42 +1094,42 @@ $icons = array(
             color: var(--accent-primary);
             padding: 2px 6px;
             border-radius: var(--radius-small);
-            background-color: rgba(45, 180, 140, 0.15);
+            background-color: rgba(59, 130, 246, 0.12);
             transition: all var(--transition-fast);
             text-decoration: none;
         }
 
         .path-root:hover {
-            background-color: rgba(45, 180, 140, 0.25);
+            background-color: rgba(59, 130, 246, 0.2);
             color: var(--accent-primary-hover);
         }
 
         .path-root svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             fill: currentColor;
         }
 
         .path-custom {
-            color: white !important;
-            background-color: rgba(255, 255, 255, 0.2) !important;
-            font-weight: 700 !important;
-            border-radius: 4px !important;
+            color: var(--text-primary) !important;
+            background-color: var(--bg-elevated) !important;
+            font-weight: 600 !important;
+            border-radius: var(--radius-small) !important;
             padding: 2px 6px !important;
             margin: 0 2px !important;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
         .path-status {
-            margin-left: 8px;
+            margin-left: 6px;
             font-weight: 600;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        .path-status.writable { color: var(--color-green); }
-        .path-status.readable { color: var(--color-blue); }
-        .path-status.denied { color: var(--color-red); }
+        .path-status.writable { color: var(--color-success); }
+        .path-status.readable { color: var(--color-info); }
+        .path-status.denied { color: var(--color-error); }
 
         .nav-buttons {
             display: flex;
@@ -1111,7 +1140,7 @@ $icons = array(
         .nav-buttons button {
             background-color: var(--bg-card);
             color: var(--text-primary);
-            padding: 8px 12px;
+            padding: 6px 10px;
             border-radius: var(--radius-small);
             font-weight: 500;
             white-space: nowrap;
@@ -1119,38 +1148,39 @@ $icons = array(
             border: 1px solid var(--border-color);
             cursor: pointer;
             text-decoration: none;
-            font-size: 13px;
+            font-size: 12px;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
         }
 
         .nav-buttons a:hover,
         .nav-buttons button:hover {
-            background-color: var(--accent-primary);
-            color: var(--bg-main);
+            background-color: var(--bg-elevated);
+            color: var(--accent-primary);
             border-color: var(--accent-primary);
         }
 
         .nav-buttons svg {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             fill: currentColor;
         }
 
         .message {
-            padding: 12px 16px;
-            margin-bottom: 16px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
             border-radius: var(--radius-small);
             border: 1px solid;
-            background-color: var(--color-green);
+            background-color: var(--color-success);
             color: white;
             font-weight: 500;
-            animation: fadeIn 0.5s;
+            font-size: 12px;
+            animation: fadeIn 0.3s;
         }
 
         .message.error {
-            background-color: var(--color-red);
+            background-color: var(--color-error);
         }
 
         @keyframes fadeIn {
@@ -1161,13 +1191,13 @@ $icons = array(
         .action-forms {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 8px;
             justify-content: center;
         }
 
         .form-group {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
         }
 
@@ -1176,11 +1206,11 @@ $icons = array(
         button,
         .button {
             font-family: var(--font-main);
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 12px;
+            padding: 6px 10px;
             border: 1px solid var(--border-color);
             border-radius: var(--radius-small);
-            background-color: var(--bg-main);
+            background-color: var(--bg-card);
             color: var(--text-primary);
             transition: all var(--transition-fast);
         }
@@ -1190,7 +1220,8 @@ $icons = array(
         textarea:focus {
             outline: none;
             border-color: var(--accent-primary);
-            box-shadow: 0 0 0 2px rgba(45, 180, 140, 0.2);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background-color: var(--bg-elevated);
         }
 
         button,
@@ -1206,17 +1237,24 @@ $icons = array(
         .button:hover {
             background-color: var(--accent-primary-hover);
             border-color: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        button:active,
+        .button:active {
+            transform: translateY(0);
         }
 
         .search-container {
-            margin: 16px 0;
+            margin: 10px 0;
         }
 
         .search-container input {
             width: 100%;
             max-width: 400px;
-            padding: 10px 14px;
-            font-size: 14px;
+            padding: 7px 12px;
+            font-size: 12px;
         }
 
         .file-table-container {
@@ -1224,16 +1262,16 @@ $icons = array(
             border: 1px solid var(--border-color);
             border-radius: var(--radius-base);
             overflow: hidden;
-            box-shadow: var(--shadow-subtle);
+            box-shadow: var(--shadow-sm);
         }
 
         .table-header-toolbar {
-            padding: 12px 16px;
-            background-color: var(--bg-main);
+            padding: 8px 12px;
+            background-color: var(--bg-elevated);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .file-table {
@@ -1244,24 +1282,24 @@ $icons = array(
 
         .file-table th,
         .file-table td {
-            padding: 10px 12px;
+            padding: 7px 10px;
             text-align: left;
             vertical-align: middle;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
         .file-table th {
-            background-color: var(--bg-main);
-            color: var(--text-primary);
+            background-color: var(--bg-elevated);
+            color: var(--text-secondary);
             font-weight: 600;
-            font-size: 12px;
+            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.05em;
         }
 
         .file-table td {
             background-color: transparent;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .file-table tr:hover td {
@@ -1276,13 +1314,13 @@ $icons = array(
             display: none;
         }
 
-        .col-select { width: 40px; }
+        .col-select { width: 35px; }
         .col-name { width: 35%; }
         .col-size { width: 10%; }
         .col-owner { width: 15%; }
         .col-perms { width: 8%; }
-        .col-date { width: 15%; }
-        .col-actions { width: 12%; }
+        .col-date { width: 14%; }
+        .col-actions { width: 13%; }
 
         .col-name > div {
             display: flex;
@@ -1306,33 +1344,33 @@ $icons = array(
         }
 
         .col-name svg {
-            width: 16px;
-            height: 16px;
+            width: 15px;
+            height: 15px;
             fill: var(--text-secondary);
             flex-shrink: 0;
         }
 
         .col-owner {
             font-family: var(--font-mono);
-            font-size: 11px;
-            color: var(--text-secondary);
+            font-size: 10px;
+            color: var(--text-muted);
             word-break: break-word;
             line-height: 1.3;
         }
 
         .col-perms {
             font-family: var(--font-mono);
-            font-size: 12px;
+            font-size: 11px;
         }
 
-        .perms-writable { color: var(--color-green); font-weight: 600; }
-        .perms-readable { color: var(--color-blue); }
-        .perms-denied { color: var(--color-red); font-weight: 600; }
+        .perms-writable { color: var(--color-success); font-weight: 600; }
+        .perms-readable { color: var(--color-info); }
+        .perms-denied { color: var(--color-error); font-weight: 600; }
 
         .text-actions {
             white-space: nowrap;
             display: flex;
-            gap: 4px;
+            gap: 3px;
             align-items: center;
             justify-content: flex-end;
         }
@@ -1342,12 +1380,12 @@ $icons = array(
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             background: none;
             border: 1px solid transparent;
             cursor: pointer;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             border-radius: var(--radius-small);
             transition: all var(--transition-fast);
             text-decoration: none;
@@ -1355,8 +1393,8 @@ $icons = array(
         }
 
         .text-actions svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             fill: currentColor;
         }
 
@@ -1364,7 +1402,7 @@ $icons = array(
         .text-actions button:hover {
             color: var(--accent-primary);
             background-color: var(--bg-hover);
-            border-color: var(--border-color);
+            border-color: var(--accent-primary);
         }
 
         #edit-view {
@@ -1375,19 +1413,19 @@ $icons = array(
             width: 100%;
             min-height: 50vh;
             font-family: var(--font-mono);
-            background-color: var(--bg-main);
+            background-color: var(--bg-card);
             color: var(--text-primary);
             border-radius: var(--radius-small);
             border: 1px solid var(--border-color);
-            padding: 12px;
+            padding: 10px;
             line-height: 1.5;
-            font-size: 13px;
+            font-size: 12px;
             resize: vertical;
         }
 
         .editor-info {
-            margin-bottom: 10px;
-            font-size: 11px;
+            margin-bottom: 8px;
+            font-size: 10px;
             color: var(--text-muted);
             font-family: var(--font-mono);
         }
@@ -1403,12 +1441,13 @@ $icons = array(
             display: none;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s;
+            animation: fadeIn 0.2s;
+            backdrop-filter: blur(4px);
         }
 
         #modal-box {
             width: 90%;
-            max-width: 500px;
+            max-width: 480px;
         }
 
         #terminal-modal {
@@ -1422,7 +1461,8 @@ $icons = array(
             display: none;
             align-items: center;
             justify-content: center;
-            animation: fadeIn 0.3s;
+            animation: fadeIn 0.2s;
+            backdrop-filter: blur(4px);
         }
 
         #terminal-modal .card {
@@ -1432,36 +1472,40 @@ $icons = array(
             position: relative;
             display: flex;
             flex-direction: column;
+            box-shadow: var(--shadow-lg);
         }
 
         .terminal-header {
-            padding: 16px 20px;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            background-color: var(--bg-elevated);
         }
 
         .terminal-header h3 {
             margin: 0;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
         }
 
         .terminal-close-btn {
-            background: var(--color-red);
+            background: var(--color-error);
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: var(--radius-small);
             cursor: pointer;
             font-weight: 500;
-            font-size: 12px;
+            font-size: 11px;
+            transition: all var(--transition-fast);
         }
 
         .terminal-close-btn:hover {
-            background: #d32f2f;
+            background: #dc2626;
+            transform: translateY(-1px);
         }
 
         .command-history {
@@ -1542,32 +1586,43 @@ $icons = array(
             position: fixed;
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-small);
+            border-radius: var(--radius-base);
             padding: 4px 0;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+            box-shadow: var(--shadow-lg);
             z-index: 1001;
-            min-width: 160px;
+            min-width: 170px;
             display: none;
         }
 
         .context-menu-item {
-            padding: 8px 12px;
+            padding: 7px 12px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            transition: background-color var(--transition-fast);
+            gap: 10px;
+            transition: all var(--transition-fast);
+            color: var(--text-primary);
         }
 
         .context-menu-item:hover {
-            background-color: var(--bg-hover);
+            background-color: var(--bg-elevated);
+            color: var(--accent-primary);
         }
 
-        .context-menu-item svg {
+        .context-menu-item svg,
+        .context-menu-item i {
             width: 14px;
             height: 14px;
             fill: var(--text-secondary);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .context-menu-item:hover svg,
+        .context-menu-item:hover i {
+            fill: var(--accent-primary);
+            color: var(--accent-primary);
         }
 
         .no-results {
@@ -1584,29 +1639,37 @@ $icons = array(
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-base);
-            padding: 12px 20px;
-            margin-bottom: 16px;
-            box-shadow: var(--shadow-subtle);
+            padding: 10px 16px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow-sm);
         }
-        
+
         .fm-branding {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
-            color: var(--accent-primary);
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
         }
-        
+
+        .fm-branding strong {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
         .top-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
-        
+
         .top-buttons a {
-            background-color: var(--bg-main);
+            background-color: var(--bg-elevated);
             color: var(--text-primary);
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: var(--radius-small);
             font-weight: 500;
-            font-size: 12px;
+            font-size: 11px;
             transition: all var(--transition-fast);
             border: 1px solid var(--border-color);
             cursor: pointer;
@@ -1615,28 +1678,29 @@ $icons = array(
             align-items: center;
             gap: 4px;
         }
-        
+
         .top-buttons a:hover {
-            background-color: var(--accent-primary);
-            color: var(--bg-main);
+            background-color: var(--bg-hover);
+            color: var(--accent-primary);
             border-color: var(--accent-primary);
+            transform: translateY(-1px);
         }
-        
+
         .top-buttons svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             fill: currentColor;
         }
 
         .danger-btn {
-            background-color: var(--color-red) !important;
+            background-color: var(--color-error) !important;
             color: white !important;
-            border-color: var(--color-red) !important;
+            border-color: var(--color-error) !important;
         }
-        
+
         .danger-btn:hover {
-            background-color: #d32f2f !important;
-            border-color: #d32f2f !important;
+            background-color: #dc2626 !important;
+            border-color: #dc2626 !important;
         }
         
         /* FIXED: 3-Column Command Container */
@@ -1782,7 +1846,7 @@ $icons = array(
 <div class="container" id="app-container">
     <div class="top-control-bar">
         <div class="fm-branding">
-            <strong>Advanced File Manager - Fixed & Stable</strong>
+            <strong>File Manager Pro</strong>
         </div>
         <div class="top-buttons">
             <a id="sec-info-btn">Sec. Info</a>
@@ -2492,9 +2556,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (f.type === 'dir') {
                 if (f.name !== '..') {
                     menuItems = [
-                        { action: 'copy', text: 'Copy', icon: '📋' },
-                        { action: 'move', text: 'Move', icon: '✂️' },
-                        { action: 'delete', text: 'Delete', icon: '🗑️' },
+                        { action: 'copy', text: 'Copy', icon: '<i class="fa-regular fa-copy"></i>' },
+                        { action: 'move', text: 'Move', icon: '<i class="fa-solid fa-scissors"></i>' },
+                        { action: 'delete', text: 'Delete', icon: '<i class="fa-regular fa-trash-can"></i>' },
                         { action: 'touch', text: 'Change Time', icon: ICONS.touch },
                         { action: 'rename', text: 'Rename', icon: ICONS.rename }
                     ];
@@ -2506,9 +2570,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 menuItems = [
                     { action: 'edit', text: 'Edit', icon: ICONS.edit },
                     { action: 'download', text: 'Download', icon: ICONS.download },
-                    { action: 'copy', text: 'Copy', icon: '📋' },
-                    { action: 'move', text: 'Move', icon: '✂️' },
-                    { action: 'delete', text: 'Delete', icon: '🗑️' },
+                    { action: 'copy', text: 'Copy', icon: '<i class="fa-regular fa-copy"></i>' },
+                    { action: 'move', text: 'Move', icon: '<i class="fa-solid fa-scissors"></i>' },
+                    { action: 'delete', text: 'Delete', icon: '<i class="fa-regular fa-trash-can"></i>' },
                     { action: 'touch', text: 'Change Time', icon: ICONS.touch },
                     { action: 'rename', text: 'Rename', icon: ICONS.rename }
                 ];
