@@ -1,0 +1,121 @@
+<svg width="1280" height="460" viewBox="0 0 1280 460" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">PHP File Manager Overview</title>
+  <desc id="desc">A dark, minimal banner illustrating file browsing, editing, and server diagnostics.</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="24" x2="1200" y2="436" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F1115"/>
+      <stop offset="1" stop-color="#161A22"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="738" y1="58" x2="1128" y2="374" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1A1F29"/>
+      <stop offset="1" stop-color="#12161D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+    <filter id="shadow" x="692" y="36" width="492" height="362" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="20"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="460" rx="28" fill="#090B0F"/>
+  <rect x="24" y="24" width="1232" height="412" rx="22" fill="url(#bg)" stroke="#242A35"/>
+
+  <g opacity="0.18">
+    <path d="M52 110H630" stroke="#7DD3FC"/>
+    <path d="M52 150H630" stroke="#7DD3FC"/>
+    <path d="M52 190H630" stroke="#7DD3FC"/>
+    <path d="M52 230H630" stroke="#7DD3FC"/>
+    <path d="M52 270H630" stroke="#7DD3FC"/>
+    <path d="M52 310H630" stroke="#7DD3FC"/>
+  </g>
+
+  <text x="76" y="110" fill="#F8FAFC" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="40" font-weight="700">PHP File Manager</text>
+  <text x="76" y="148" fill="#94A3B8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18">
+    Compact server-side operations, inline editing, and diagnostics in a focused UI.
+  </text>
+
+  <g>
+    <rect x="76" y="186" width="138" height="34" rx="17" fill="#111827" stroke="#243041"/>
+    <text x="145" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Single-file PHP</text>
+
+    <rect x="228" y="186" width="166" height="34" rx="17" fill="#111827" stroke="#243041"/>
+    <text x="311" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Local UI bundle</text>
+
+    <rect x="408" y="186" width="132" height="34" rx="17" fill="#111827" stroke="#243041"/>
+    <text x="474" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Batch tools</text>
+  </g>
+
+  <g>
+    <rect x="76" y="262" width="250" height="96" rx="16" fill="#0E131A" stroke="#202938"/>
+    <text x="98" y="292" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">File Browser</text>
+    <text x="98" y="318" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13">Breadcrumbs, pagination, permissions,</text>
+    <text x="98" y="338" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13">owner/group visibility, and quick actions.</text>
+    <rect x="98" y="350" width="92" height="8" rx="4" fill="#1E293B"/>
+    <rect x="196" y="350" width="48" height="8" rx="4" fill="#0EA5E9" opacity="0.85"/>
+  </g>
+
+  <g>
+    <rect x="346" y="262" width="250" height="96" rx="16" fill="#0E131A" stroke="#202938"/>
+    <text x="368" y="292" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Inline Editor</text>
+    <text x="368" y="318" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13">Edit files in place, inspect metadata,</text>
+    <text x="368" y="338" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13">toggle between view and edit, then save.</text>
+    <rect x="368" y="350" width="132" height="8" rx="4" fill="#1E293B"/>
+    <rect x="506" y="350" width="42" height="8" rx="4" fill="#34D399" opacity="0.9"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="732" y="58" width="412" height="316" rx="18" fill="url(#panel)" stroke="#2B3340"/>
+    <rect x="732" y="58" width="412" height="40" rx="18" fill="#171C24"/>
+    <circle cx="762" cy="78" r="5" fill="#F87171"/>
+    <circle cx="780" cy="78" r="5" fill="#FBBF24"/>
+    <circle cx="798" cy="78" r="5" fill="#4ADE80"/>
+    <text x="830" y="83" fill="#CBD5E1" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Operational Workspace</text>
+
+    <rect x="756" y="120" width="160" height="22" rx="11" fill="#10151C" stroke="#283140"/>
+    <text x="776" y="135" fill="#8FA1B8" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="11">/var/www/project</text>
+
+    <rect x="932" y="120" width="88" height="22" rx="11" fill="#10151C" stroke="#283140"/>
+    <text x="976" y="135" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="11" font-weight="600">Upload</text>
+
+    <rect x="1032" y="120" width="88" height="22" rx="11" fill="url(#accent)"/>
+    <text x="1076" y="135" text-anchor="middle" fill="#08111A" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="11" font-weight="700">New File</text>
+
+    <rect x="756" y="164" width="364" height="158" rx="12" fill="#0E131A" stroke="#222A36"/>
+    <rect x="774" y="182" width="150" height="10" rx="5" fill="#253041"/>
+    <rect x="938" y="182" width="64" height="10" rx="5" fill="#1D2531"/>
+    <rect x="1020" y="182" width="82" height="10" rx="5" fill="#1D2531"/>
+
+    <circle cx="780" cy="218" r="6" fill="#FCD34D"/>
+    <rect x="796" y="213" width="184" height="10" rx="5" fill="#C7D2FE" opacity="0.9"/>
+    <rect x="996" y="213" width="40" height="10" rx="5" fill="#334155"/>
+    <rect x="1048" y="213" width="54" height="10" rx="5" fill="#334155"/>
+
+    <circle cx="780" cy="248" r="6" fill="#93C5FD"/>
+    <rect x="796" y="243" width="210" height="10" rx="5" fill="#94A3B8"/>
+    <rect x="1020" y="243" width="36" height="10" rx="5" fill="#334155"/>
+    <rect x="1068" y="243" width="34" height="10" rx="5" fill="#334155"/>
+
+    <circle cx="780" cy="278" r="6" fill="#93C5FD"/>
+    <rect x="796" y="273" width="174" height="10" rx="5" fill="#94A3B8" opacity="0.85"/>
+    <rect x="986" y="273" width="50" height="10" rx="5" fill="#334155"/>
+    <rect x="1048" y="273" width="54" height="10" rx="5" fill="#334155"/>
+
+    <rect x="756" y="336" width="120" height="16" rx="8" fill="#10151C" stroke="#283140"/>
+    <text x="816" y="347" text-anchor="middle" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10">Batch: Copy / Cut / Zip</text>
+
+    <rect x="886" y="336" width="110" height="16" rx="8" fill="#10151C" stroke="#283140"/>
+    <text x="941" y="347" text-anchor="middle" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10">Editor + Viewer</text>
+
+    <rect x="1006" y="336" width="114" height="16" rx="8" fill="#10151C" stroke="#283140"/>
+    <text x="1063" y="347" text-anchor="middle" fill="#93A1B6" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10">System Insight</text>
+  </g>
+</svg>
