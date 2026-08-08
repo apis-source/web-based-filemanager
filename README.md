@@ -125,3 +125,5 @@ The project keeps the deployment model small while still covering the workflows 
 - practical batch actions
 
 It is optimized for utility first, with a compact UI that stays readable during repetitive operational work.
+
+[Back to top](#top)
