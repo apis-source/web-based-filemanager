@@ -1,5 +1,3 @@
-# PHP File Manager
-
 <p align="center">
   <img src="assets/overview.svg" alt="PHP File Manager overview" width="100%" />
 </p>
