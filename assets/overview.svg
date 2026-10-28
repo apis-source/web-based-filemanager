@@ -48,7 +48,7 @@
     <text x="145" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Single-file PHP</text>
 
     <rect x="228" y="186" width="166" height="34" rx="17" fill="#111827" stroke="#243041"/>
-    <text x="311" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Local UI bundle</text>
+    <text x="311" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Zero build step</text>
 
     <rect x="408" y="186" width="132" height="34" rx="17" fill="#111827" stroke="#243041"/>
     <text x="474" y="208" text-anchor="middle" fill="#E2E8F0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">Batch tools</text>
